@@ -65,6 +65,9 @@
   .lbtn .s{ font-size:12px; color:var(--dim); margin-top:3px; }
   .col-head{ font-size:12px; letter-spacing:.16em; color:var(--gold); padding:2px 2px 2px; flex:0 0 auto; }
   .col-empty{ font-size:13px; color:var(--dim); padding:8px 2px; }
+  .col-foot{ margin-top:auto; padding-top:10px; flex:0 0 auto; position:sticky; bottom:0;
+             background:linear-gradient(to top, var(--ink) 60%, transparent); }
+  .btn-gold.wide{ width:100%; padding:13px 10px; font-size:15.5px; border-radius:11px; }
 
   .col-info{ background:var(--card); border:1px solid var(--line); border-radius:14px; padding:16px; overflow-y:auto; }
   .col-info h3{ margin:0 0 8px; font-size:19px; font-weight:400; color:var(--gold-bright); }
@@ -1012,7 +1015,7 @@ function markLearn(step, r){
 
 // ---------- 홈 ----------
 // ================= 홈 =================
-let homeMenu = null, homeStep = null;
+let homeMenu = null, homeStep = null, homeRegion = null;
 
 const DUEL_MODES = [
   {id:'1v1',   name:'1 : 1',        n:2, desc:'둘이서 맞대결'},
@@ -1058,14 +1061,16 @@ function renderLobby(){
     mc.appendChild(b);
   });
 
-  document.getElementById('globeCap').textContent = `${doneAll} / ${totalAll} 단계 · 175개 나라`;
+  document.getElementById('globeCap').textContent = homeRegion
+    ? `${REGIONS[homeRegion].name} · ${regionIds(homeRegion).length}개 나라`
+    : `${doneAll} / ${totalAll} 단계 · 175개 나라`;
   renderStepCol(); renderRegionCol();
 }
 
 function pickMenu(id){
   if(id==='duel'){ openDuelHome(); return; }
   if(id==='trophy'){ openTrophy(); return; }
-  homeMenu = id; homeStep = null;
+  homeMenu = id; homeStep = null; homeRegion = null;
   renderLobby();
 }
 
@@ -1102,7 +1107,7 @@ function renderStepCol(){
     b.className = 'lbtn' + (r.open ? '' : ' locked') + (String(homeStep)===String(r.key) ? ' on' : '');
     b.innerHTML = `<div class="t"><span>${r.open?'':'🔒 '}${r.label}</span><span class="p">${r.open?r.cnt+'/9':''}</span></div>
                    <div class="s">${r.open ? r.sub : r.cond}</div>`;
-    if(r.open) b.onclick = ()=>{ homeStep = r.key; renderLobby(); };
+    if(r.open) b.onclick = ()=>{ homeStep = r.key; homeRegion = null; renderLobby(); };
     col.appendChild(b);
   });
 }
@@ -1125,13 +1130,29 @@ function renderRegionCol(){
       open = stageOpenIn(rid, homeStep); why = stageCond(homeStep); done = stagePassedIn(rid, homeStep);
     }
     const b = document.createElement('button');
-    b.className = 'lbtn' + (open ? '' : ' locked');
+    b.className = 'lbtn' + (open ? '' : ' locked') + (homeRegion===rid ? ' on' : '');
     b.innerHTML = `<div class="t"><span>${open?'':'🔒 '}${REGIONS[rid].name}</span><span class="p">${done?'✓':''}</span></div>
                    <div class="s">${open ? regionIds(rid).length+'개 나라' : why}</div>`;
-    if(open) b.onclick = ()=> startFromHome(rid);
-    b.onmouseenter = ()=> spinGlobeTo(rid);
+    if(open) b.onclick = ()=>{
+      if(homeRegion === rid){ startFromHome(rid); return; }   // 한 번 더 누르면 바로 시작
+      homeRegion = rid; spinGlobeTo(rid); renderLobby();
+    };
     col.appendChild(b);
   });
+
+  // 고른 대륙이 있으면 아래에 확인 버튼
+  const foot = document.createElement('div');
+  foot.className = 'col-foot';
+  if(homeRegion){
+    const go = document.createElement('button');
+    go.className = 'btn-gold wide';
+    go.textContent = `${REGIONS[homeRegion].name} 시작하기`;
+    go.onclick = ()=> startFromHome(homeRegion);
+    foot.appendChild(go);
+  } else {
+    foot.innerHTML = `<div class="col-empty" style="text-align:center">대륙을 눌러 골라 보세요</div>`;
+  }
+  col.appendChild(foot);
 }
 
 function startFromHome(rid){
