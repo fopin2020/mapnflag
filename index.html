@@ -25,65 +25,70 @@
   .screen.on{ display:block; }
 
   /* ================= 홈 ================= */
-  #lobby{ overflow-y:auto; -webkit-overflow-scrolling:touch; }
-  .lobby-inner{ max-width:940px; margin:0 auto; padding:26px 20px 40px; }
-  .lobby-head{ display:flex; align-items:flex-end; justify-content:space-between; gap:14px;
-               padding-bottom:16px; border-bottom:1px solid var(--line); margin-bottom:22px; }
-  .brand h1{ font-family:'Spectral',serif; font-size:33px; margin:0 0 4px; color:var(--land-on); letter-spacing:.02em; }
-  .brand p{ margin:0; color:var(--dim); font-size:14px; }
-  .purse{ text-align:right; white-space:nowrap; }
-  .purse .n{ font-family:'Spectral',serif; font-size:30px; font-weight:700; color:var(--gold-bright); line-height:1; }
-  .purse .l{ font-size:11px; letter-spacing:.14em; color:var(--dim); }
+  #lobby, #duelHome, #trophyHome{ overflow:hidden; }
+  .home{ height:100%; display:flex; flex-direction:column; padding:14px 18px 18px; }
+  .home-top{ display:flex; align-items:center; justify-content:space-between; gap:12px;
+             padding-bottom:12px; border-bottom:1px solid var(--line); flex:0 0 auto; }
+  .home-top h1{ font-family:'Spectral',serif; font-size:26px; margin:0; letter-spacing:.02em; }
+  .purse{ display:flex; align-items:baseline; gap:8px; }
+  .purse .n{ font-family:'Spectral',serif; font-size:24px; font-weight:700; color:var(--gold-bright); }
+  .purse .l{ font-size:11px; letter-spacing:.12em; color:var(--dim); }
+  .ghost.tiny{ padding:5px 11px; font-size:12.5px; margin-left:10px; }
 
-  .sec{ margin-bottom:26px; }
-  .sec-title{ display:flex; align-items:baseline; gap:10px; margin-bottom:12px; }
-  .sec-title b{ font-size:17px; font-weight:400; color:var(--gold-bright); }
-  .sec-title span{ font-size:13px; color:var(--dim); }
+  .home-body{ flex:1 1 auto; min-height:0; display:grid; gap:14px; padding-top:14px;
+              grid-template-columns:230px 1fr 230px 210px; }
+  .duel-body{ grid-template-columns:250px 250px 1fr; }
+  .col{ min-height:0; display:flex; flex-direction:column; gap:9px; }
+  .col-list{ overflow-y:auto; }
+  .col-globe{ align-items:center; justify-content:center; position:relative; }
+  #globe{ width:100%; height:100%; display:block; }
+  .globe-cap{ position:absolute; bottom:6px; left:0; right:0; text-align:center;
+              font-size:13px; color:var(--dim); pointer-events:none; }
 
-  .continent{ display:flex; gap:8px; flex-wrap:wrap; margin-bottom:20px; }
-  .cont-chip{ background:var(--card); border:1px solid var(--line); color:var(--dim);
-    border-radius:999px; padding:8px 16px; font-family:inherit; font-size:14px; cursor:pointer; }
-  .cont-chip.on{ border-color:var(--gold); color:var(--gold-bright); background:rgba(201,162,74,.14); }
-  .cont-chip:disabled{ opacity:.4; cursor:default; }
+  .mbtn{ background:var(--card); border:1px solid var(--line); color:var(--land-on);
+         border-radius:14px; padding:14px 16px; font-family:inherit; text-align:left;
+         cursor:pointer; transition:border-color .12s ease, background .12s ease; }
+  .mbtn:hover{ border-color:var(--gold); }
+  .mbtn.on{ border-color:var(--gold); background:rgba(201,162,74,.16); }
+  .mbtn.locked{ opacity:.45; cursor:default; }
+  .mbtn.locked:hover{ border-color:var(--line); }
+  .mbtn .t{ font-size:19px; display:flex; align-items:center; justify-content:space-between; gap:8px; }
+  .mbtn .s{ font-size:12.5px; color:var(--dim); margin-top:4px; }
+  .mbtn .p{ font-family:'Spectral',serif; font-size:14px; color:var(--gold-bright); }
+  .lbtn{ background:rgba(22,40,63,.7); border:1px solid var(--line); color:var(--land-on);
+         border-radius:11px; padding:11px 13px; font-family:inherit; text-align:left; cursor:pointer; }
+  .lbtn:hover{ border-color:var(--gold); }
+  .lbtn.on{ border-color:var(--gold); background:rgba(201,162,74,.14); }
+  .lbtn.locked{ opacity:.45; cursor:default; }
+  .lbtn.locked:hover{ border-color:var(--line); }
+  .lbtn .t{ font-size:15.5px; display:flex; justify-content:space-between; gap:8px; align-items:center; }
+  .lbtn .s{ font-size:12px; color:var(--dim); margin-top:3px; }
+  .col-head{ font-size:12px; letter-spacing:.16em; color:var(--gold); padding:2px 2px 2px; flex:0 0 auto; }
+  .col-empty{ font-size:13px; color:var(--dim); padding:8px 2px; }
 
-  .cards{ display:grid; grid-template-columns:repeat(3,1fr); gap:12px; }
-  .card{ background:var(--card); border:1px solid var(--line); border-radius:12px;
-         padding:16px 16px 15px; text-align:left; cursor:pointer; font-family:inherit; color:inherit;
-         transition:border-color .12s ease, transform .08s ease; }
-  .card:hover{ border-color:var(--gold); }
-  .card:active{ transform:scale(.99); }
-  .card .step{ font-family:'Spectral',serif; font-size:12px; letter-spacing:.16em; color:var(--gold); }
-  .card .ttl{ font-size:18px; margin:5px 0 6px; }
-  .card .desc{ font-size:13px; color:var(--dim); line-height:1.6; }
-  .card .badge{ display:inline-block; margin-top:9px; font-size:12px; color:var(--land-done); }
-  .card.locked{ opacity:.5; cursor:default; }
-  .card.locked:hover{ border-color:var(--line); }
-  .card .lock{ display:inline-block; margin-top:9px; font-size:12px; color:var(--dim); }
+  .col-info{ background:var(--card); border:1px solid var(--line); border-radius:14px; padding:16px; overflow-y:auto; }
+  .col-info h3{ margin:0 0 8px; font-size:19px; font-weight:400; color:var(--gold-bright); }
+  .col-info p{ margin:0 0 10px; font-size:13.5px; color:var(--dim); line-height:1.75; }
+  .col-info .row{ display:flex; justify-content:space-between; font-size:13.5px; padding:7px 0;
+                  border-top:1px solid var(--line); }
+  .col-info .row b{ color:var(--land-on); font-weight:400; }
 
-  .veil{ margin-top:10px; font-size:12.5px; color:var(--dim); text-align:center;
-         border:1px dashed var(--line); border-radius:10px; padding:10px; }
-  .lobby-foot{ margin-top:30px; text-align:center; }
-  .pick-head{ margin:6px 0 20px; }
-  .pick-head .step{ font-family:'Spectral',serif; font-size:12px; letter-spacing:.18em; color:var(--gold); }
-  .pick-head h2{ font-family:'Spectral',serif; font-size:27px; margin:6px 0 6px; color:var(--land-on); }
-  .pick-head p{ margin:0; color:var(--dim); font-size:14px; }
-  .card .cond{ display:inline-block; margin-top:9px; font-size:12px; color:var(--gold); }
-  .tiers{ display:grid; grid-template-columns:repeat(3,1fr); gap:12px; }
-  .tier{ background:var(--card); border:1px solid var(--line); border-radius:12px; padding:15px; }
-  .tier h3{ margin:0 0 3px; font-size:16px; font-weight:400; }
-  .tier .tdesc{ font-size:12.5px; color:var(--dim); margin-bottom:11px; }
-  .tier.easy h3{ color:var(--ok); }
-  .tier.mid h3{ color:var(--gold-bright); }
-  .tier.hard h3{ color:var(--bad); }
-  .stage-btn{ display:flex; justify-content:space-between; align-items:center; gap:8px; width:100%;
-    background:rgba(13,27,46,.5); border:1px solid var(--line); color:var(--land-on);
-    border-radius:9px; padding:10px 12px; font-family:inherit; font-size:14.5px; cursor:pointer;
-    margin-bottom:7px; text-align:left; }
-  .stage-btn:last-child{ margin-bottom:0; }
-  .stage-btn:hover{ border-color:var(--gold); }
-  .stage-btn .rec{ font-family:'Spectral',serif; font-size:12px; color:var(--dim); white-space:nowrap; }
-  .stage-btn:disabled{ opacity:.42; cursor:default; }
-  .stage-btn:disabled:hover{ border-color:var(--line); }
+  .trophy-wrap{ flex:1 1 auto; min-height:0; overflow-y:auto; padding-top:14px;
+                display:grid; grid-template-columns:repeat(auto-fill,minmax(170px,1fr));
+                gap:11px; align-content:start; }
+  .trophy{ background:var(--card); border:1px solid var(--line); border-radius:13px;
+           padding:14px 12px; text-align:center; }
+  .trophy.got{ border-color:var(--gold); background:rgba(201,162,74,.1); }
+  .trophy .ic{ font-size:27px; line-height:1.2; filter:grayscale(1) opacity(.35); }
+  .trophy.got .ic{ filter:none; }
+  .trophy .nm{ font-size:14px; margin-top:6px; }
+  .trophy .ds{ font-size:11.5px; color:var(--dim); margin-top:3px; line-height:1.5; }
+
+  @media (max-width:900px){
+    .home-body{ grid-template-columns:1fr 1fr; grid-template-rows:auto 1fr; }
+    .col-globe{ display:none; }
+    .duel-body{ grid-template-columns:1fr 1fr; }
+  }
 
   /* ================= 학습 목록 ================= */
   #learn{ overflow-y:auto; }
@@ -232,39 +237,49 @@
 
 <!-- ===================== 홈 ===================== -->
 <div class="screen on" id="lobby">
-  <div class="lobby-inner">
-    <div class="lobby-head">
-      <div class="brand">
-        <h1>지도 탐험</h1>
-        <p>배우고, 찾고, 맞히는 세계 지리</p>
+  <div class="home">
+    <div class="home-top">
+      <h1>지도 대탐험</h1>
+      <div class="purse"><span class="n" id="lobbyGold">0</span><span class="l">골드</span>
+        <button class="ghost tiny" id="resetBtn">진도 초기화</button></div>
+    </div>
+    <div class="home-body">
+      <nav class="col col-menu" id="menuCol"></nav>
+      <div class="col col-globe">
+        <svg id="globe"></svg>
+        <div class="globe-cap" id="globeCap">지도 대탐험</div>
       </div>
-      <div class="purse">
-        <div class="n" id="lobbyGold">0</div>
-        <div class="l">골드</div>
-      </div>
+      <div class="col col-list" id="stepCol"></div>
+      <div class="col col-list" id="regionCol"></div>
     </div>
+  </div>
+</div>
 
-    <div class="sec">
-      <div class="sec-title"><b>배우기</b><span>STEP을 마치면 다음 STEP과 STAGE가 열립니다</span></div>
-      <div class="cards" id="learnCards"></div>
-      <div class="veil" id="learnVeil"></div>
+<!-- ===================== 겨루기 홈 ===================== -->
+<div class="screen" id="duelHome">
+  <div class="home">
+    <div class="home-top">
+      <h1>겨루기</h1>
+      <div class="purse"><span class="n" id="duelGold">0</span><span class="l">골드</span>
+        <button class="ghost tiny" onclick="goHome()">← 홈</button></div>
     </div>
+    <div class="home-body duel-body">
+      <div class="col col-list" id="duelModeCol"></div>
+      <div class="col col-list" id="duelLeagueCol"></div>
+      <div class="col col-info" id="duelInfo"></div>
+    </div>
+  </div>
+</div>
 
-    <div class="sec">
-      <div class="sec-title"><b>연습하기</b><span>시간 제한 없이 배운 것을 확인합니다</span></div>
-      <div class="cards" id="practiceCards"></div>
-      <div class="veil" id="practiceVeil"></div>
+<!-- ===================== 기록실 ===================== -->
+<div class="screen" id="trophyHome">
+  <div class="home">
+    <div class="home-top">
+      <h1>기록실</h1>
+      <div class="purse"><span class="n" id="trophyCount">0</span><span class="l">트로피</span>
+        <button class="ghost tiny" onclick="goHome()">← 홈</button></div>
     </div>
-
-    <div class="sec">
-      <div class="sec-title"><b>문제 풀기</b><span>나라 수에 따라 제한 시간이 달라집니다</span></div>
-      <div class="tiers" id="tierBox"></div>
-      <div class="veil" id="stageVeil"></div>
-    </div>
-
-    <div class="lobby-foot">
-      <button class="ghost" id="resetBtn">진도 초기화</button>
-    </div>
+    <div class="trophy-wrap" id="trophyWrap"></div>
   </div>
 </div>
 
@@ -391,18 +406,52 @@ const store = {
   set(k, v){ try{ localStorage.setItem('geo:'+k, JSON.stringify(v)); }catch(e){} }
 };
 let gold = store.get('gold', 0);
-let progress = store.get('progress', {steps:{}, stages:{}, practice:{}});
-if(!progress.practice) progress.practice = {};   // steps:{countries:true}, stages:{1:{pct,solved}}
-const PASS_PCT = 0.6;      // STAGE 통과 기준 — 이만큼 맞히면 다음 STAGE가 열립니다
+// 진도는 지역별로 기록합니다  { steps:{지역:{STEP:true}}, practice:{지역:{1:true}}, stages:{지역:{1:{pct}}} }
+let progress = store.get('progress', null);
+if(!progress || !progress.v2) progress = {v2:true, steps:{}, practice:{}, stages:{}};
+const PASS_PCT = 0.6;      // STAGE 통과 기준
+function bag(kind, r){ if(!progress[kind][r]) progress[kind][r] = {}; return progress[kind][r]; }
+function saveProgress(){ store.set('progress', progress); }
 
-function stepDone(id){ return !!progress.steps[id]; }
-function stagePassed(n){ const r = progress.stages[n]; return !!r && r.pct >= PASS_PCT; }
-function stepOpen(i){ return i===0 ? true : stepDone(LEARN_STEPS[i-1].id); }     // i: 0-based
-function practiceOpen(n){ return stepDone(LEARN_STEPS[n-1].id); }
-function practiceDone(n){ return !!(progress.practice||{})[n]; }
-function stageOpen(n){ return n<=3 ? practiceDone(n) : stagePassed(n-1); }
-function practiceCond(n){ return `STEP ${n}을 마치면 열립니다`; }
+function stepDoneIn(r, id){ return !!bag('steps', r)[id]; }
+function practiceDoneIn(r, n){ return !!bag('practice', r)[n]; }
+function stagePassedIn(r, n){ const x = bag('stages', r)[n]; return !!x && x.pct >= PASS_PCT; }
+function stepOpenIn(r, i){ return i===0 ? true : stepDoneIn(r, LEARN_STEPS[i-1].id); }
+function practiceOpenIn(r, n){ return stepDoneIn(r, LEARN_STEPS[n-1].id); }
+function stageOpenIn(r, n){ return n<=3 ? practiceDoneIn(r, n) : stagePassedIn(r, n-1); }
+const anyRegion = fn => REGION_ORDER.some(fn);
+const allRegions = fn => REGION_ORDER.every(fn);
+function regionCleared(r){
+  return LEARN_STEPS.every(st=> stepDoneIn(r, st.id)) &&
+         [1,2,3].every(n=> practiceDoneIn(r, n)) && [1,2,3].every(n=> stagePassedIn(r, n));
+}
+function regionScore(r){          // 지역당 최대 9단계
+  let n = 0;
+  LEARN_STEPS.forEach(st=>{ if(stepDoneIn(r, st.id)) n++; });
+  [1,2,3].forEach(x=>{ if(practiceDoneIn(r, x)) n++; if(stagePassedIn(r, x)) n++; });
+  return n;
+}
+// 홈에서는 '어느 한 지역에서라도 열렸는가'로 표시하고, 지역별 잠금은 지역 선택 화면에서 안내합니다
+function stepOpen(i){ return anyRegion(r=> stepOpenIn(r, i)); }
+function practiceOpen(n){ return anyRegion(r=> practiceOpenIn(r, n)); }
+function stageOpen(n){ return anyRegion(r=> stageOpenIn(r, n)); }
+function practiceDone(n){ return anyRegion(r=> practiceDoneIn(r, n)); }
+function stepDone(id){ return anyRegion(r=> stepDoneIn(r, id)); }
 function stepCond(i){ return `STEP ${i}을 마치면 열립니다`; }
+function practiceCond(n){ return `STEP ${n}을 마치면 열립니다`; }
+
+// 대결 종목별 해금 조건
+const DUELS = [
+  {id:'name',      name:'지도 대결',     desc:'지도에서 나라 찾기로 겨룹니다',
+   cond:()=> allRegions(r=> practiceDoneIn(r,1)), text:'모든 대륙의 연습 1을 마치면 열립니다'},
+  {id:'capital',   name:'수도 대결',     desc:'수도 맞히기로 겨룹니다',
+   cond:()=> allRegions(r=> practiceDoneIn(r,2)), text:'모든 대륙의 연습 2를 마치면 열립니다'},
+  {id:'flag',      name:'국기 대결',     desc:'국기 맞히기로 겨룹니다',
+   cond:()=> allRegions(r=> practiceDoneIn(r,3)), text:'모든 대륙의 연습 3을 마치면 열립니다'},
+  {id:'champions', name:'챔피언스 리그', desc:'전 세계 무작위 출제 · 연속 정답 콤보',
+   cond:()=> allRegions(regionCleared), text:'모든 대륙의 배우기 · 연습 · 문제를 마치면 열립니다'},
+];
+
 function stageCond(n){ return n<=3 ? `연습 ${n}을 마치면 열립니다` : `STAGE ${n-1}에서 ${Math.round(PASS_PCT*100)}% 이상 맞히면 열립니다`; }
 function saveProgress(){ store.set('progress', progress); }
 
@@ -410,7 +459,7 @@ function saveProgress(){ store.set('progress', progress); }
 let screenName = 'lobby';
 function showScreen(n){
   screenName = n;
-  ['lobby','pick','learn','mapScreen'].forEach(s=> document.getElementById(s).classList.toggle('on', s===n));
+  ['lobby','pick','learn','mapScreen','duelHome','trophyHome'].forEach(s=> document.getElementById(s).classList.toggle('on', s===n));
 }
 function goHome(){
   stopStage();
@@ -679,7 +728,7 @@ function showLearnCard(id){
 function finishLearnMap(){
   stageOn = false; closeDock(); unfocus(); paintMap();
   const isCap = learnKind === 'map-cap';
-  const first = !progress.steps[learnKind];
+  const first = !stepDoneIn(curRegion, learnKind);
   if(first){ markLearn(learnKind); updateStats(); }
   showOverlay(isCap ? 'STEP 1 완료 · 지도와 수도' : 'STEP 2 완료 · 지도와 국기',
     `${IDS.length}개 나라를 모두 확인했습니다.` + (first ? `<br>학습 보너스 +${LEARN_GOLD}골드` : ''),
@@ -732,11 +781,12 @@ function stopStage(){
 
 function endStage(cleared){
   stageOn=false;
+  const cc = counts(); if(isPractice) cc.practice++; else cc.stage++; saveProgress();
   if(tick){ clearInterval(tick); tick=null; }
   currentId=null; paintMap(); closeDock(); unfocus(); hint.style.opacity='0';
   if(isPractice){
-    const first = !practiceDone(level);
-    if(first){ progress.practice[level]=true; saveProgress(); gold += LEARN_GOLD; store.set('gold', gold); updateStats(); }
+    const first = !practiceDoneIn(curRegion, level);
+    if(first){ bag('practice', curRegion)[level] = true; saveProgress(); gold += LEARN_GOLD; store.set('gold', gold); updateStats(); }
     showOverlay('연습 완료', `${IDS.length}개 나라를 모두 맞혔습니다.` + (first ? `<br>연습 보너스 +${LEARN_GOLD}골드<br><span style="color:var(--gold-bright)">STAGE ${level}이 열렸습니다</span>` : ''),
       [{t:'확인', gold:true, fn:goHome}, {t:'다시하기', fn:()=> startStage()}], 8);
     return;
@@ -745,8 +795,8 @@ function endStage(cleared){
   if(cleared){ earned = timeLeft*CLEAR_BONUS; gold += earned; }
   store.set('gold', gold); updateStats();
   const pct = solved / IDS.length;
-  const rec = progress.stages[level] || {solved:0, pct:0};
-  if(pct > rec.pct){ progress.stages[level] = {solved, pct}; saveProgress(); }
+  const rec = bag('stages', curRegion)[level] || {solved:0, pct:0};
+  if(pct > rec.pct){ bag('stages', curRegion)[level] = {solved, pct}; saveProgress(); }
   const nextReady = level<7 && STAGES[level].ready;   // 아직 만들지 않은 STAGE는 안내하지 않음
   const opened = (nextReady && pct>=PASS_PCT && !rec_passed(rec)) ? level+1 : 0;
   const openMsg = opened ? `<br><span style="color:var(--gold-bright)">STAGE ${opened}이 열렸습니다</span>` : '';
@@ -899,10 +949,16 @@ function openPicker(kind, key){
   const box = document.getElementById('pickCont'); box.innerHTML='';
   REGION_ORDER.forEach(rid=>{
     const r = REGIONS[rid];
+    let open = true, why = '';
+    if(kind==='step'){ const i = LEARN_STEPS.findIndex(x=>x.id===key); open = stepOpenIn(rid, i); why = stepCond(i); }
+    else if(kind==='practice'){ open = practiceOpenIn(rid, key); why = practiceCond(key); }
+    else { open = stageOpenIn(rid, key); why = stageCond(key); }
     const b = document.createElement('button');
-    b.className = 'card';
-    b.innerHTML = `<div class="ttl">${r.name}</div><div class="desc">${regionIds(rid).length}개 나라</div>`;
-    b.onclick = ()=> startPending(rid);
+    b.className = 'card' + (open ? '' : ' locked');
+    b.innerHTML = `<div class="ttl">${open?'':'🔒 '}${r.name}</div>
+      <div class="desc">${regionIds(rid).length}개 나라 · ${regionScore(rid)}/9 단계</div>` +
+      (open ? '' : `<div class="cond">이 대륙에서 ${why}</div>`);
+    if(open) b.onclick = ()=> startPending(rid);
     box.appendChild(b);
   });
   showScreen('pick');
@@ -947,101 +1003,277 @@ function openLearn(step, cont){
   finish.onclick = ()=>{ markLearn(step); goLobby(); };
   foot.appendChild(finish);
 }
-function markLearn(step){
-  if(progress.steps[step]) return;
-  progress.steps[step] = true; saveProgress();
+function markLearn(step, r){
+  r = r || curRegion;
+  if(stepDoneIn(r, step)) return;
+  bag('steps', r)[step] = true; saveProgress();
   gold += LEARN_GOLD; store.set('gold', gold);
 }
 
 // ---------- 홈 ----------
+// ================= 홈 =================
+let homeMenu = null, homeStep = null;
+
+const DUEL_MODES = [
+  {id:'1v1',   name:'1 : 1',        n:2, desc:'둘이서 맞대결'},
+  {id:'1v1v1', name:'1 : 1 : 1',    n:3, desc:'세 명이 동시에'},
+  {id:'1v1v1v1',name:'1 : 1 : 1 : 1', n:4, desc:'네 명이 동시에'},
+  {id:'2v2',   name:'2 : 2',        n:4, desc:'두 명씩 팀을 이뤄'},
+];
+const DUEL_FEE = {'대륙 리그':20, '챔피언스 리그':50};
+const CHAMPION_WINS = 5;      // 대륙 리그마다 필요한 승수
+
+function duelWins(r){ return (progress.wins||{})[r] || 0; }
+function championsOpen(){ return REGION_ORDER.every(r=> duelWins(r) >= CHAMPION_WINS); }
+function totalWins(){ return REGION_ORDER.reduce((a,r)=> a + duelWins(r), 0); }
+function counts(){ if(!progress.counts) progress.counts = {practice:0, stage:0}; return progress.counts; }
+
 function renderLobby(){
   document.getElementById('lobbyGold').textContent = gold;
+  const doneAll = REGION_ORDER.reduce((a,r)=> a + regionScore(r), 0);
+  const totalAll = REGION_ORDER.length * 9;
 
-  // ----- 배우기(STEP): 열린 것 + 바로 다음 하나까지만 -----
-  const lc = document.getElementById('learnCards'); lc.innerHTML='';
-  let hiddenSteps = 0, shownNext = false;
-  LEARN_STEPS.forEach((st,i)=>{
-    const open = stepOpen(i);
-    if(!open && shownNext){ hiddenSteps++; return; }
+  const learnCnt = REGION_ORDER.filter(r=> LEARN_STEPS.every(st=> stepDoneIn(r, st.id))).length;
+  const prCnt    = REGION_ORDER.filter(r=> [1,2,3].every(n=> practiceDoneIn(r,n))).length;
+  const stCnt    = REGION_ORDER.filter(r=> [1,2,3].every(n=> stagePassedIn(r,n))).length;
+
+  const MENU = [
+    {id:'learn',    name:'배우기',   sub:'지도 · 수도 · 국기', prog:`${learnCnt}/9`, open:true},
+    {id:'practice', name:'연습하기', sub:'시간 제한 없이 확인', prog:`${prCnt}/9`,
+     open: anyRegion(r=> practiceOpenIn(r,1)), cond:'배우기 STEP 1을 마치면 열립니다'},
+    {id:'stage',    name:'문제 풀기', sub:'제한 시간 안에 겨루기', prog:`${stCnt}/9`,
+     open: anyRegion(r=> stageOpenIn(r,1)), cond:'연습 1을 마치면 열립니다'},
+    {id:'duel',     name:'겨루기',   sub:'친구와 대결', prog: totalWins()? totalWins()+'승':'',
+     open: anyRegion(r=> regionCleared(r)), cond:'한 대륙을 모두 마치면 열립니다'},
+    {id:'trophy',   name:'기록실',   sub:'모은 트로피', prog:`${trophyList().filter(t=>t.got).length}`, open:true},
+  ];
+
+  const mc = document.getElementById('menuCol'); mc.innerHTML='';
+  MENU.forEach(m=>{
     const b = document.createElement('button');
-    b.className = 'card' + (open ? '' : ' locked');
-    b.innerHTML = `<div class="step">STEP ${i+1}</div><div class="ttl">${st.title}</div>
-      <div class="desc">${st.desc}</div>` +
-      (open ? (stepDone(st.id) ? `<div class="badge">✓ 마침</div>` : '')
-            : `<div class="cond">🔒 ${stepCond(i)}</div>`);
-    if(open) b.onclick = ()=> openPicker('step', st.id);
-    lc.appendChild(b);
-    if(!open) shownNext = true;
+    b.className = 'mbtn' + (m.open ? '' : ' locked') + (homeMenu===m.id ? ' on' : '');
+    b.innerHTML = `<div class="t"><span>${m.open?'':'🔒 '}${m.name}</span><span class="p">${m.open?m.prog:''}</span></div>
+                   <div class="s">${m.open ? m.sub : m.cond}</div>`;
+    if(m.open) b.onclick = ()=> pickMenu(m.id);
+    mc.appendChild(b);
   });
-  document.getElementById('learnVeil').textContent =
-    hiddenSteps ? `이후 STEP ${hiddenSteps}개는 순서대로 열립니다` : '';
-  document.getElementById('learnVeil').style.display = hiddenSteps ? 'block' : 'none';
 
-  // ----- 연습하기: 열린 것 + 바로 다음 하나까지만 -----
-  const pc = document.getElementById('practiceCards'); pc.innerHTML='';
-  let hiddenPr = 0, prNext = false;
-  [1,2,3].forEach(n=>{
-    const st = STAGES[n-1];
-    const open = practiceOpen(n);
-    if(!open && prNext){ hiddenPr++; return; }
-    const b = document.createElement('button');
-    b.className = 'card' + (open ? '' : ' locked');
-    b.innerHTML = `<div class="step">연습 ${n}</div><div class="ttl">${st.name}</div>
-      <div class="desc">${st.desc}<br>시간 제한 없음</div>` +
-      (open ? (practiceDone(n) ? `<div class="badge">✓ 마침</div>` : '')
-            : `<div class="cond">🔒 ${practiceCond(n)}</div>`);
-    if(open) b.onclick = ()=> openPicker('practice', n);
-    pc.appendChild(b);
-    if(!open) prNext = true;
-  });
-  const pv = document.getElementById('practiceVeil');
-  pv.textContent = hiddenPr ? `이후 연습 ${hiddenPr}개는 순서대로 열립니다` : '';
-  pv.style.display = hiddenPr ? 'block' : 'none';
-
-  // ----- 문제 풀기(STAGE): 열린 것 + 바로 다음 하나까지만 -----
-  const tb = document.getElementById('tierBox'); tb.innerHTML='';
-  let hiddenStages = 0, stageNext = false;
-  const visible = [];
-  STAGES.forEach(st=>{
-    const open = stageOpen(st.n);
-    if(!open && stageNext){ hiddenStages++; return; }
-    visible.push({st, open});
-    if(!open) stageNext = true;
-  });
-  TIERS.forEach(t=>{
-    const rows = visible.filter(v=> v.st.tier===t.id);
-    if(!rows.length) return;
-    const box = document.createElement('div');
-    box.className = 'tier '+t.id;
-    box.innerHTML = `<h3>${t.label}</h3><div class="tdesc">${t.desc}</div>`;
-    rows.forEach(({st, open})=>{
-      const b = document.createElement('button');
-      b.className = 'stage-btn';
-      b.disabled = !open || !st.ready;
-      const rec = progress.stages[st.n];
-      const right = !open ? '🔒'
-        : !st.ready ? '준비 중'
-        : rec ? `최고 ${rec.solved}/${IDS.length}` : '';
-      const sub = !open ? stageCond(st.n) : st.desc;
-      b.innerHTML = `<span>STAGE ${st.n} · ${st.name}<br>
-        <span style="font-size:12px;color:${open?'var(--dim)':'var(--gold)'}">${sub}</span></span>
-        <span class="rec">${right}</span>`;
-      if(open && st.ready) b.onclick = ()=> st.n<=3 ? openPicker('stage', st.n) : enterStage(st.n);
-      box.appendChild(b);
-    });
-    tb.appendChild(box);
-  });
-  const sv = document.getElementById('stageVeil');
-  sv.textContent = hiddenStages ? `이후 STAGE ${hiddenStages}개는 순서대로 열립니다` : '';
-  sv.style.display = hiddenStages ? 'block' : 'none';
-
-  document.getElementById('resetBtn').onclick = ()=>{
-    if(!confirm('배운 진도와 골드를 모두 지우고 처음부터 시작할까요?')) return;
-    progress = {steps:{}, stages:{}}; saveProgress();
-    gold = 0; store.set('gold', 0);
-    renderLobby();
-  };
+  document.getElementById('globeCap').textContent = `${doneAll} / ${totalAll} 단계 · 175개 나라`;
+  renderStepCol(); renderRegionCol();
 }
+
+function pickMenu(id){
+  if(id==='duel'){ openDuelHome(); return; }
+  if(id==='trophy'){ openTrophy(); return; }
+  homeMenu = id; homeStep = null;
+  renderLobby();
+}
+
+function renderStepCol(){
+  const col = document.getElementById('stepCol'); col.innerHTML='';
+  if(!homeMenu){ col.innerHTML = `<div class="col-empty">왼쪽에서 무엇을 할지 골라 보세요.</div>`; return; }
+  const head = document.createElement('div');
+  head.className='col-head';
+  head.textContent = homeMenu==='learn' ? '배우기 단계' : homeMenu==='practice' ? '연습 단계' : '문제 단계';
+  col.appendChild(head);
+
+  const rows = [];
+  if(homeMenu==='learn'){
+    LEARN_STEPS.forEach((st,i)=> rows.push({key:st.id, label:`STEP ${i+1} · ${st.title}`,
+      sub:st.desc, open:stepOpen(i), cond:stepCond(i),
+      cnt:REGION_ORDER.filter(r=> stepDoneIn(r,st.id)).length}));
+  } else if(homeMenu==='practice'){
+    [1,2,3].forEach(n=> rows.push({key:n, label:`연습 ${n} · ${STAGES[n-1].name}`,
+      sub:'시간 제한 없음', open:practiceOpen(n), cond:practiceCond(n),
+      cnt:REGION_ORDER.filter(r=> practiceDoneIn(r,n)).length}));
+  } else {
+    let shown = false;
+    STAGES.forEach(st=>{
+      const open = stageOpen(st.n);
+      if(!open && shown) return;
+      rows.push({key:st.n, label:`STAGE ${st.n} · ${st.name}`, sub:st.ready? st.desc : '준비 중',
+        open: open && st.ready, cond:stageCond(st.n),
+        cnt:REGION_ORDER.filter(r=> stagePassedIn(r,st.n)).length});
+      if(!open) shown = true;
+    });
+  }
+  rows.forEach(r=>{
+    const b = document.createElement('button');
+    b.className = 'lbtn' + (r.open ? '' : ' locked') + (String(homeStep)===String(r.key) ? ' on' : '');
+    b.innerHTML = `<div class="t"><span>${r.open?'':'🔒 '}${r.label}</span><span class="p">${r.open?r.cnt+'/9':''}</span></div>
+                   <div class="s">${r.open ? r.sub : r.cond}</div>`;
+    if(r.open) b.onclick = ()=>{ homeStep = r.key; renderLobby(); };
+    col.appendChild(b);
+  });
+}
+
+function renderRegionCol(){
+  const col = document.getElementById('regionCol'); col.innerHTML='';
+  if(homeStep===null || homeStep===undefined){
+    col.innerHTML = `<div class="col-empty">단계를 고르면 대륙이 나타납니다.</div>`; return;
+  }
+  const head = document.createElement('div'); head.className='col-head'; head.textContent='대륙';
+  col.appendChild(head);
+  REGION_ORDER.forEach(rid=>{
+    let open, why, done=false;
+    if(homeMenu==='learn'){
+      const i = LEARN_STEPS.findIndex(x=>x.id===homeStep);
+      open = stepOpenIn(rid,i); why = stepCond(i); done = stepDoneIn(rid, homeStep);
+    } else if(homeMenu==='practice'){
+      open = practiceOpenIn(rid, homeStep); why = practiceCond(homeStep); done = practiceDoneIn(rid, homeStep);
+    } else {
+      open = stageOpenIn(rid, homeStep); why = stageCond(homeStep); done = stagePassedIn(rid, homeStep);
+    }
+    const b = document.createElement('button');
+    b.className = 'lbtn' + (open ? '' : ' locked');
+    b.innerHTML = `<div class="t"><span>${open?'':'🔒 '}${REGIONS[rid].name}</span><span class="p">${done?'✓':''}</span></div>
+                   <div class="s">${open ? regionIds(rid).length+'개 나라' : why}</div>`;
+    if(open) b.onclick = ()=> startFromHome(rid);
+    b.onmouseenter = ()=> spinGlobeTo(rid);
+    col.appendChild(b);
+  });
+}
+
+function startFromHome(rid){
+  curRegion = rid; IDS = regionIds(rid);
+  if(homeMenu==='learn') openLearn(homeStep, rid);
+  else if(homeMenu==='practice') enterPractice(homeStep, rid);
+  else enterStage(homeStep, rid);
+}
+
+// ================= 겨루기 홈 =================
+let duelMode = null, duelLeague = null;
+function openDuelHome(){
+  duelMode = duelMode || '1v1'; duelLeague = duelLeague || 'asia-e';
+  showScreen('duelHome');
+  document.getElementById('duelGold').textContent = gold;
+
+  const mc = document.getElementById('duelModeCol'); mc.innerHTML='';
+  const h1 = document.createElement('div'); h1.className='col-head'; h1.textContent='대결 인원'; mc.appendChild(h1);
+  DUEL_MODES.forEach(m=>{
+    const b=document.createElement('button');
+    b.className='lbtn'+(duelMode===m.id?' on':'');
+    b.innerHTML=`<div class="t"><span>${m.name}</span><span class="p">${m.n}명</span></div><div class="s">${m.desc}</div>`;
+    b.onclick=()=>{ duelMode=m.id; openDuelHome(); };
+    mc.appendChild(b);
+  });
+
+  const lc = document.getElementById('duelLeagueCol'); lc.innerHTML='';
+  const h2 = document.createElement('div'); h2.className='col-head'; h2.textContent='리그'; lc.appendChild(h2);
+  REGION_ORDER.forEach(rid=>{
+    const open = regionCleared(rid);
+    const b=document.createElement('button');
+    b.className='lbtn'+(open?'':' locked')+(duelLeague===rid?' on':'');
+    b.innerHTML=`<div class="t"><span>${open?'':'🔒 '}${REGIONS[rid].name} 리그</span><span class="p">${open?duelWins(rid)+'승':''}</span></div>
+                 <div class="s">${open ? '참가비 '+DUEL_FEE['대륙 리그']+'골드' : '이 대륙을 모두 마치면 열립니다'}</div>`;
+    if(open) b.onclick=()=>{ duelLeague=rid; openDuelHome(); };
+    lc.appendChild(b);
+  });
+  const co = championsOpen();
+  const cb=document.createElement('button');
+  cb.className='lbtn'+(co?'':' locked')+(duelLeague==='champions'?' on':'');
+  cb.innerHTML=`<div class="t"><span>${co?'👑 ':'🔒 '}챔피언스 리그</span></div>
+                <div class="s">${co ? '전 세계 무작위 · 콤보 · 참가비 '+DUEL_FEE['챔피언스 리그']+'골드'
+                 : '모든 대륙 리그에서 '+CHAMPION_WINS+'승 이상'}</div>`;
+  if(co) cb.onclick=()=>{ duelLeague='champions'; openDuelHome(); };
+  lc.appendChild(cb);
+
+  const info = document.getElementById('duelInfo');
+  const m = DUEL_MODES.find(x=>x.id===duelMode);
+  const champ = duelLeague==='champions';
+  const fee = champ ? DUEL_FEE['챔피언스 리그'] : DUEL_FEE['대륙 리그'];
+  info.innerHTML = `
+    <h3>${champ ? '챔피언스 리그' : (REGIONS[duelLeague]?REGIONS[duelLeague].name+' 리그':'리그를 고르세요')}</h3>
+    <p>${champ ? '전 세계 175개 나라에서 지도 · 수도 · 국기가 무작위로 출제됩니다. 연속으로 맞힐수록 골드가 커지고, 연속으로 틀리면 잃는 골드가 커집니다.'
+               : '고른 대륙의 나라들로 출제됩니다. 1·2위가 상금을 나눠 가집니다.'}</p>
+    <div class="row"><span>인원</span><b>${m.name}</b></div>
+    <div class="row"><span>참가비</span><b>${fee}골드 (1인)</b></div>
+    <div class="row"><span>상금</span><b>1위 ${Math.round(fee*m.n*0.6)}골드 · 2위 ${fee}골드</b></div>
+    ${champ ? `<div class="row"><span>콤보</span><b>정답 연속 시 최대 3배</b></div>` : ''}
+    <div class="row"><span>채팅</span><b>없음</b></div>
+    <p style="margin-top:14px;color:var(--gold)">대결 서버는 준비 중입니다.</p>`;
+}
+
+// ================= 기록실 =================
+function trophyList(){
+  const c = counts();
+  const allSteps = allRegions(r=> LEARN_STEPS.every(st=> stepDoneIn(r, st.id)));
+  const allPr = allRegions(r=> [1,2,3].every(n=> practiceDoneIn(r,n)));
+  const allSt = allRegions(r=> [1,2,3].every(n=> stagePassedIn(r,n)));
+  const w = totalWins();
+  const list = [
+    {ic:'📘', nm:'배우기 완주', ds:'모든 대륙의 배우기 완료', got:allSteps},
+    {ic:'✍️', nm:'연습 완주', ds:'모든 대륙의 연습 완료', got:allPr},
+    {ic:'🎯', nm:'문제 완주', ds:'모든 대륙의 문제 통과', got:allSt},
+    {ic:'🔁', nm:'연습 50회', ds:`연습 ${c.practice}회`, got:c.practice>=50},
+    {ic:'🔂', nm:'연습 100회', ds:`연습 ${c.practice}회`, got:c.practice>=100},
+    {ic:'⏱️', nm:'문제 100회', ds:`문제 ${c.stage}회`, got:c.stage>=100},
+    {ic:'🥇', nm:'첫 승', ds:'겨루기 1승', got:w>=1},
+    {ic:'🏅', nm:'10승', ds:'겨루기 10승', got:w>=10},
+    {ic:'🏆', nm:'100승', ds:'겨루기 100승', got:w>=100},
+  ];
+  REGION_ORDER.forEach(r=> list.push({ic:'🛡️', nm:REGIONS[r].name+' 챔피언',
+    ds:`${REGIONS[r].name} 리그 ${CHAMPION_WINS}승`, got: duelWins(r)>=CHAMPION_WINS}));
+  list.push({ic:'👑', nm:'챔피언 오브 챔피언스', ds:'챔피언스 리그 우승', got:(progress.wins||{}).champions>=1});
+  return list;
+}
+function openTrophy(){
+  showScreen('trophyHome');
+  const list = trophyList();
+  document.getElementById('trophyCount').textContent = `${list.filter(t=>t.got).length} / ${list.length}`;
+  document.getElementById('trophyWrap').innerHTML = list.map(t=>`
+    <div class="trophy ${t.got?'got':''}">
+      <div class="ic">${t.ic}</div><div class="nm">${t.got?'':'🔒 '}${t.nm}</div><div class="ds">${t.ds}</div>
+    </div>`).join('');
+}
+
+// ================= 지구본 =================
+const globeSvg = d3.select('#globe');
+const globeProj = d3.geoOrthographic().clipAngle(90).precision(0.6);
+const globePath = d3.geoPath(globeProj);
+let globeRot = [110, -15], globeTarget = null, globeCtx = null, hiRegion = null;
+function initGlobe(){
+  const el = document.getElementById('globe');
+  const w = el.clientWidth || 300, h = el.clientHeight || 300;
+  const R = Math.min(w,h)/2 - 8;
+  globeSvg.attr('viewBox', `0 0 ${w} ${h}`);
+  globeProj.translate([w/2, h/2]).scale(R);
+  globeSvg.selectAll('*').remove();
+  globeSvg.append('circle').attr('cx',w/2).attr('cy',h/2).attr('r',R)
+    .attr('fill','#12243d').attr('stroke','#2a3f5e');
+  globeCtx = globeSvg.append('g');
+  drawGlobe();
+}
+function drawGlobe(){
+  if(!globeCtx) return;
+  globeProj.rotate(globeRot);
+  const feats = Object.keys(GEO).map(featureOf);
+  const sel = globeCtx.selectAll('path').data(feats);
+  sel.enter().append('path').merge(sel)
+    .attr('d', globePath)
+    .attr('fill', d=> hiRegion && REGIONS[hiRegion] && REGIONS[hiRegion].codes.includes(d.id) ? '#efe6cf' : '#8a8368')
+    .attr('stroke','#6d6752').attr('stroke-width',.4);
+}
+function spinGlobeTo(rid){
+  hiRegion = rid;
+  const v = REGIONS[rid].view;
+  globeTarget = [ -((v[0][0]+v[1][0])/2), -((v[0][1]+v[1][1])/2) ];
+}
+let globeLast = 0;
+d3.timer((t)=>{
+  if(t - globeLast < 55) return;                 // 초당 18프레임 정도로 제한
+  const dt = t - globeLast; globeLast = t;
+  if(!document.getElementById('lobby').classList.contains('on')) return;
+  if(globeTarget){
+    globeRot[0] += (globeTarget[0]-globeRot[0])*0.18;
+    globeRot[1] += (globeTarget[1]-globeRot[1])*0.18;
+    if(Math.abs(globeTarget[0]-globeRot[0]) < 0.5) globeTarget = null;
+  } else {
+    globeRot[0] += dt * 0.006;                   // 초당 6도쯤 자전
+  }
+  drawGlobe();
+});
+
 
 // ---------- 화면 크기 변화 ----------
 let rz=null;
@@ -1054,7 +1286,10 @@ window.addEventListener('resize', ()=>{
   }, 220);
 });
 
+initGlobe();
+initGlobe();
 renderLobby();
+window.addEventListener('resize', ()=>{ if(document.getElementById('lobby').classList.contains('on')) initGlobe(); });
 </script>
 </body>
 </html>
