@@ -1990,45 +1990,57 @@ function drawGlobeGame(){
   });
 }
 
-// 회전 · 확대
-gsvg.call(d3.drag()
-  .on('start', ()=> gsvg.classed('dragging', true))
-  .on('drag', ev=>{ if(pinchD) return;
-    gRot[0] += ev.dx * 0.25 / gK;
-    gRot[1] = Math.max(-89, Math.min(89, gRot[1] - ev.dy * 0.25 / gK));
-    drawGlobeGame(); })
-  .on('end', ()=> gsvg.classed('dragging', false)));
+// 회전 · 확대 — 손가락(포인터) 입력을 직접 처리합니다
 function gZoom(f){ gK = Math.max(1, Math.min(9, gK*f)); drawGlobeGame(); }
 
-// 태블릿: 두 손가락으로 확대·축소, 두 번 눌러 확대
-let pinchD = 0, lastTap = 0;
+let gMoved = false;
 (function(){
   const el = document.getElementById('gmap');
-  const dist = t => Math.hypot(t[0].clientX-t[1].clientX, t[0].clientY-t[1].clientY);
-  el.addEventListener('touchstart', e=>{
-    if(e.touches.length===2){ pinchD = dist(e.touches); e.preventDefault(); }
-    else if(e.touches.length===1){
-      const now = Date.now();
-      if(now - lastTap < 300) gZoom(1.6);
-      lastTap = now;
+  const pts = new Map();
+  let pinch = 0;
+  const dist = ()=>{ const v=[...pts.values()]; return Math.hypot(v[0].x-v[1].x, v[0].y-v[1].y); };
+
+  el.addEventListener('pointerdown', e=>{
+    pts.set(e.pointerId, {x:e.clientX, y:e.clientY});
+    if(pts.size === 1){
+      gMoved = false;            // 두 번 두드리기 확대는 넣지 않습니다 — 나라를 두 번 누를 때 헷갈립니다
+      el.classList.add('dragging');
     }
-  }, {passive:false});
-  el.addEventListener('touchmove', e=>{
-    if(e.touches.length===2){
-      e.preventDefault();
-      const d = dist(e.touches);
-      if(pinchD > 0) gZoom(d / pinchD);
-      pinchD = d;
+    if(pts.size === 2){ pinch = dist(); gMoved = true; }
+  });
+
+  el.addEventListener('pointermove', e=>{
+    const p = pts.get(e.pointerId);
+    if(!p) return;
+    const dx = e.clientX - p.x, dy = e.clientY - p.y;
+    p.x = e.clientX; p.y = e.clientY;
+    if(pts.size === 1){
+      if(Math.abs(dx) + Math.abs(dy) > 2) gMoved = true;
+      gRot[0] += dx * 0.25 / gK;
+      gRot[1] = Math.max(-89, Math.min(89, gRot[1] - dy * 0.25 / gK));
+      drawGlobeGame();
+    } else if(pts.size === 2){
+      const d = dist();
+      if(pinch > 0) gZoom(d / pinch);
+      pinch = d;
     }
-  }, {passive:false});
-  el.addEventListener('touchend', e=>{ if(e.touches.length < 2) pinchD = 0; });
+  });
+
+  const drop = e=>{
+    pts.delete(e.pointerId);
+    if(pts.size < 2) pinch = 0;
+    if(pts.size === 0) el.classList.remove('dragging');
+  };
+  ['pointerup','pointercancel','pointerleave'].forEach(ev=> el.addEventListener(ev, drop));
 })();
+
 document.getElementById('gIn').onclick = ()=> gZoom(1.5);
 document.getElementById('gOut').onclick = ()=> gZoom(1/1.5);
 document.getElementById('gReset').onclick = ()=>{ gK=1; drawGlobeGame(); };
 gsvg.on('wheel', ev=>{ ev.preventDefault(); gZoom(ev.deltaY < 0 ? 1.12 : 1/1.12); });
 
 function pickCountry(code){
+  if(gMoved) return;                       // 지구본을 돌린 동작은 선택으로 치지 않습니다
   if(!gRun || gGraded || gDone.has(code)) return;
   gSel = code;
   gLand.selectAll('path').classed('sel', d=> d.id===code);
