@@ -155,6 +155,16 @@
   .trophy-wrap{ flex:1 1 auto; min-height:0; overflow-y:auto; padding-top:14px;
                 display:grid; grid-template-columns:repeat(auto-fill,minmax(170px,1fr));
                 gap:11px; align-content:start; }
+  .pbar-wrap{ grid-column:1/-1; background:var(--card); border:1px solid var(--line);
+              border-radius:13px; padding:14px 16px; margin-bottom:6px; }
+  .pbar-top{ display:flex; align-items:baseline; gap:10px; margin-bottom:9px; }
+  .pbar-top b{ font-family:'Spectral',serif; font-size:24px; color:var(--gold-bright); font-weight:700; }
+  .pbar-top span{ font-size:12px; letter-spacing:.12em; color:var(--dim); }
+  .pbar{ display:flex; gap:3px; height:14px; }
+  .pseg{ background:#0f1e33; border-radius:99px; overflow:hidden; }
+  .pseg i{ display:block; height:100%; border-radius:99px; }
+  .pleg{ display:flex; gap:14px; flex-wrap:wrap; margin-top:9px; font-size:12px; color:var(--dim); }
+  .pleg i{ display:inline-block; width:9px; height:9px; border-radius:3px; margin-right:5px; }
   .trophy{ background:var(--card); border:1px solid var(--line); border-radius:13px;
            padding:14px 12px; text-align:center; }
   .trophy.got{ border-color:var(--gold); background:rgba(201,162,74,.1); }
@@ -1471,7 +1481,7 @@ let duelMode = '1v1', duelStage = 4, duelTeams = false;
 let duel = null;            // 진행 중인 대결 상태
 
 const DUEL_STAGES = [4,5,6,7];
-const FEE_BY_STAGE = {4:20, 5:20, 6:25, 7:50};
+const FEE_BY_STAGE = {4:50, 5:50, 6:70, 7:100};
 
 function mulberry32(a){ return function(){ a|=0; a=a+0x6D2B79F5|0; let t=Math.imul(a^a>>>15,1|a);
   t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
@@ -1803,6 +1813,23 @@ function finishTurn(score){
   if(duel.idx < duel.players.length) showTurn(); else showDuelResult();
 }
 
+function recordDuel(rows){
+  if(!progress.duel) progress.duel = {plays:0, wins:0, byStage:{}, team:0, perfect:0};
+  const D = progress.duel;
+  const myName = NET.myName;
+  const mine = rows.find(r=> r.name === myName);
+  if(!mine) { saveProgress(); return; }        // 한 기기 번갈아 모드는 전적에 넣지 않습니다
+  D.plays++;
+  const top = rows[0];
+  if(top && top.name === myName){
+    D.wins++;
+    D.byStage[duel.stage] = (D.byStage[duel.stage]||0) + 1;
+    if(duel.teams) D.team++;
+    if(mine.score >= runCount()*100) D.perfect++;
+  }
+  saveProgress();
+}
+
 function showDuelResult(){
   showScreen('duelTurn');
   const n = duel.players.length, fee = duel.fee;
@@ -1817,6 +1844,12 @@ function showDuelResult(){
       team:t, score: t==='HOME'?H:A, win: winner===t,
       members: duel.players.filter(p=>p.team===t)
     })).sort((a,b)=> b.score-a.score);
+    if(NET.room){
+      const flat = duel.players.slice().sort((a,b)=> b.score-a.score);
+      const winTeam = rows[0].team;
+      const me = duel.players.find(p=> p.name === NET.myName);
+      if(me) recordDuel(me.team===winTeam ? [me, ...flat.filter(p=>p!==me)] : flat.filter(p=>p.name!==NET.myName).concat([me]));
+    }
     document.getElementById('dtTitle').textContent = '팀 대결 결과';
     document.getElementById('dtBody').innerHTML = `
       <div class="rank">${rows.map((r,i)=>`
@@ -1831,6 +1864,7 @@ function showDuelResult(){
       <button class="ghost" onclick="goHome()">홈으로</button>`;
   } else {
     rows = duel.players.slice().sort((a,b)=> b.score-a.score);
+    if(NET.room) recordDuel(rows);
     document.getElementById('dtTitle').textContent = '대결 결과';
     document.getElementById('dtBody').innerHTML = `
       <div class="rank">${rows.map((p,i)=>{
@@ -1850,38 +1884,73 @@ function showDuelResult(){
 
 // ================= 기록실 =================
 // ================= 기록실 =================
+function duelRec(){ return progress.duel || {plays:0, wins:0, byStage:{}, team:0, perfect:0}; }
+
 function trophyList(){
-  const c = counts();
+  const c = counts(), d = duelRec();
   const allSteps = allRegions(r=> LEARN_STEPS.every(st=> stepDoneIn(r, st.id)));
-  const allPr = allRegions(r=> [1,2,3].every(n=> practiceDoneIn(r,n)));
-  const allSt = allRegions(r=> [1,2,3].every(n=> stagePassedIn(r,n)));
-  const w = totalWins();
+  const allPr    = allRegions(r=> [1,2,3].every(n=> practiceDoneIn(r,n)));
+  const allSt    = allRegions(r=> [1,2,3].every(n=> stagePassedIn(r,n)));
+  const w = d.wins;
   const list = [
-    {ic:'📘', nm:'배우기 완주', ds:'모든 대륙의 배우기 완료', got:allSteps},
-    {ic:'✍️', nm:'연습 완주', ds:'모든 대륙의 연습 완료', got:allPr},
-    {ic:'🎯', nm:'문제 완주', ds:'모든 대륙의 문제 통과', got:allSt},
-    {ic:'🔁', nm:'연습 50회', ds:`연습 ${c.practice}회`, got:c.practice>=50},
-    {ic:'🔂', nm:'연습 100회', ds:`연습 ${c.practice}회`, got:c.practice>=100},
-    {ic:'⏱️', nm:'문제 100회', ds:`문제 ${c.stage}회`, got:c.stage>=100},
-    {ic:'🥇', nm:'첫 승', ds:'겨루기 1승', got:w>=1},
-    {ic:'🏅', nm:'10승', ds:'겨루기 10승', got:w>=10},
-    {ic:'🏆', nm:'100승', ds:'겨루기 100승', got:w>=100},
+    {ic:'📘', nm:'배우기 완주', ds:'아홉 대륙의 배우기 완료', got:allSteps},
+    {ic:'✍️', nm:'연습 완주',  ds:'아홉 대륙의 연습 완료',   got:allPr},
+    {ic:'🎯', nm:'문제 완주',  ds:'아홉 대륙의 문제 통과',   got:allSt},
+    {ic:'🔁', nm:'연습 50회',  ds:`지금 ${c.practice}회`,     got:c.practice>=50},
+    {ic:'🔂', nm:'연습 100회', ds:`지금 ${c.practice}회`,     got:c.practice>=100},
+    {ic:'⏱️', nm:'문제 100회', ds:`지금 ${c.stage}회`,        got:c.stage>=100},
   ];
-  REGION_ORDER.forEach(r=> list.push({ic:'🛡️', nm:REGIONS[r].name+' 챔피언',
-    ds:`${REGIONS[r].name} 리그 ${CHAMPION_WINS}승`, got: duelWins(r)>=CHAMPION_WINS}));
-  list.push({ic:'👑', nm:'챔피언 오브 챔피언스', ds:'챔피언스 리그 우승', got:(progress.wins||{}).champions>=1});
+  // 대륙 정복 — 그 대륙의 아홉 단계를 모두 마치면
+  REGION_ORDER.forEach(r=> list.push({ic:'🗺️', nm:REGIONS[r].name+' 정복',
+    ds:`${REGIONS[r].name} 9단계 완료 (${regionScore(r)}/9)`, got: regionCleared(r)}));
+  // 전 세계 단계
+  list.push({ic:'🧭', nm:'세계 일주', ds:'이름·국기·수도 찾기 통과',
+    got: [4,5,6].every(n=> stagePassedIn('world', n))});
+  list.push({ic:'🚪', nm:'삼중 관문 돌파', ds:'STAGE 7 통과', got: stagePassedIn('world', 7)});
+  // 대결 — 모두 전 세계 기준
+  list.push({ic:'🥇', nm:'첫 승',   ds:`${w}승 ${d.plays-w}패`, got:w>=1});
+  list.push({ic:'🏅', nm:'10승',    ds:`${w}승`, got:w>=10});
+  list.push({ic:'🏆', nm:'50승',    ds:`${w}승`, got:w>=50});
+  list.push({ic:'👑', nm:'100승',   ds:`${w}승`, got:w>=100});
+  DUEL_STAGES.forEach(n=> list.push({ic:'⚔️', nm:STAGES[n-1].name+' 우승',
+    ds:`${STAGES[n-1].name} 대결 1위 ${d.byStage[n]||0}회`, got:(d.byStage[n]||0)>=1}));
+  list.push({ic:'🤝', nm:'팀 우승',  ds:`팀전 승리 ${d.team}회`, got:d.team>=1});
+  list.push({ic:'💯', nm:'완승',    ds:'전 문제 정답으로 1위', got:d.perfect>=1});
   return list;
 }
+
+// 전체 진도 막대
+function progressBar(){
+  const seg = [
+    {nm:'배우기', color:'#5fa87a', done: REGION_ORDER.reduce((a,r)=> a + LEARN_STEPS.filter(st=> stepDoneIn(r,st.id)).length, 0), total: 27},
+    {nm:'연습',   color:'#6f9fd8', done: REGION_ORDER.reduce((a,r)=> a + [1,2,3].filter(n=> practiceDoneIn(r,n)).length, 0), total: 27},
+    {nm:'문제',   color:'#c9a24a', done: REGION_ORDER.reduce((a,r)=> a + [1,2,3].filter(n=> stagePassedIn(r,n)).length, 0), total: 27},
+    {nm:'전 세계', color:'#c1614a', done: [4,5,6,7].filter(n=> stagePassedIn('world',n)).length, total: 4},
+  ];
+  const total = seg.reduce((a,x)=>a+x.total,0), done = seg.reduce((a,x)=>a+x.done,0);
+  return `
+    <div class="pbar-wrap">
+      <div class="pbar-top"><b>${done} / ${total}</b><span>전체 진도</span></div>
+      <div class="pbar">${seg.map(x=>`
+        <div class="pseg" style="flex:${x.total}">
+          <i style="width:${Math.round(x.done/x.total*100)}%;background:${x.color}"></i>
+        </div>`).join('')}</div>
+      <div class="pleg">${seg.map(x=>`
+        <span><i style="background:${x.color}"></i>${x.nm} ${x.done}/${x.total}</span>`).join('')}</div>
+    </div>`;
+}
+
 function openTrophy(){
   showScreen('trophyHome');
   const list = trophyList();
   document.getElementById('trophyCount').textContent = `${list.filter(t=>t.got).length} / ${list.length}`;
-  document.getElementById('trophyWrap').innerHTML = list.map(t=>`
+  document.getElementById('trophyWrap').innerHTML = progressBar() + list.map(t=>`
     <div class="trophy ${t.got?'got':''}">
       <div class="ic">${t.ic}</div><div class="nm">${t.got?'':'🔒 '}${t.nm}</div><div class="ds">${t.ds}</div>
     </div>`).join('');
 }
 
+// ================= 지구본 =================
 // ================= 지구본 =================
 const globeSvg = d3.select('#globe');
 const globeProj = d3.geoOrthographic().clipAngle(90).precision(0.6);
