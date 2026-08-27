@@ -9,6 +9,9 @@
 <link href="https://fonts.googleapis.com/css2?family=Gowun+Dodum&family=Spectral:wght@500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.4/peerjs.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <style>
   :root{
     --sea:#12243d; --sea-line:rgba(201,162,74,.05);
@@ -130,6 +133,19 @@
   .rank .sc{ font-family:'Spectral',serif; font-size:18px; }
   .rank .gd{ font-family:'Spectral',serif; font-size:15px; width:74px; text-align:right; }
   .gd.plus{ color:var(--ok); } .gd.minus{ color:var(--bad); }
+  .auth{ width:100%; max-width:420px; background:var(--card); border:1px solid var(--line);
+         border-radius:14px; padding:22px; text-align:left; }
+  .auth h2{ font-family:'Spectral',serif; font-size:24px; margin:0 0 4px; color:var(--gold-bright); font-weight:600; }
+  .auth p.lead{ margin:0 0 16px; font-size:13px; color:var(--dim); line-height:1.7; }
+  .auth label{ display:block; font-size:12px; color:var(--dim); margin:11px 0 5px; letter-spacing:.05em; }
+  .auth input{ width:100%; background:#0f1e33; border:1px solid var(--line); color:var(--land-on);
+               border-radius:9px; padding:11px 12px; font-family:inherit; font-size:15px; }
+  .auth .err{ color:var(--bad); font-size:13px; margin-top:10px; min-height:18px; }
+  .auth .switch{ margin-top:14px; text-align:center; font-size:13px; color:var(--dim); }
+  .auth .switch a{ color:var(--gold-bright); cursor:pointer; text-decoration:underline; }
+  .auth .agree{ display:flex; gap:8px; align-items:flex-start; margin-top:14px; font-size:12.5px; color:var(--dim); line-height:1.6; }
+  .auth .agree input{ width:auto; margin-top:2px; }
+  .locktag{ font-size:11px; color:var(--gold); border:1px solid var(--gold); border-radius:99px; padding:2px 8px; }
   .netcode{ font-family:'Spectral',serif; font-size:52px; letter-spacing:.14em; color:var(--gold-bright); }
   .plist{ width:100%; max-width:520px; }
   .plist .row{ display:flex; align-items:center; gap:10px; padding:10px 14px; border:1px solid var(--line);
@@ -341,6 +357,9 @@
     <div class="home-top">
       <h1>지도 대탐험 <span class="devtag" id="devTag">개발 모드 · 전체 해금</span></h1>
       <div class="purse"><span class="n" id="lobbyGold">0</span><span class="l">골드</span>
+        <span class="l" id="acctTag" style="margin-left:12px"></span>
+        <button class="ghost tiny" id="redeemBtn">리딤 코드</button>
+        <button class="ghost tiny" id="logoutBtn">로그아웃</button>
         <button class="ghost tiny" id="resetBtn">진도 초기화</button></div>
     </div>
     <div class="home-body">
@@ -425,6 +444,16 @@
     <div class="overlay is-hidden" id="dOverlay">
       <h2 id="dOvTitle"></h2><p id="dOvBody"></p>
       <div class="ov-btns" id="dOvBtns"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== 로그인 ===================== -->
+<div class="screen" id="authScreen">
+  <div class="home">
+    <div class="home-top"><h1>지도 대탐험</h1><div class="purse"><span class="l">계정</span></div></div>
+    <div class="turn-wrap">
+      <div class="auth" id="authBox"></div>
     </div>
   </div>
 </div>
@@ -582,11 +611,157 @@ const HOLD_OK = 420, HOLD_NO = 650;          // 채점 결과를 보여 주는 �
 
 
 // ---------- 저장 ----------
+// 계정별 저장. 서버를 붙이면 SERVER.save/load 만 채우면 됩니다.
+let ACCT = null;                       // {id, email, nick, entitled}
 const store = {
-  get(k, d){ try{ const v = localStorage.getItem('geo:'+k); return v===null ? d : JSON.parse(v); }catch(e){ return d; } },
-  set(k, v){ try{ localStorage.setItem('geo:'+k, JSON.stringify(v)); }catch(e){} }
+  key(k){ return 'geo:' + (ACCT ? 'u/'+ACCT.id+'/' : '') + k; },
+  get(k, d){ try{ const v = localStorage.getItem(this.key(k)); return v===null ? d : JSON.parse(v); }catch(e){ return d; } },
+  set(k, v){ try{ localStorage.setItem(this.key(k), JSON.stringify(v)); SERVER.push(k, v); }catch(e){} }
+};
+
+// ===== 서버 (Firebase) =====
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyBDpmu_v-bKbmAJq-Qr84vcPzmSAoavJNk",
+  authDomain: "mapnflag.firebaseapp.com",
+  projectId: "mapnflag",
+  storageBucket: "mapnflag.firebasestorage.app",
+  messagingSenderId: "996133568952",
+  appId: "1:996133568952:web:c31e245214424848f28f4d"
+};
+
+const SERVER = {
+  ready:false, auth:null, db:null, uid:null, timer:null,
+
+  init(){
+    try{
+      if(typeof firebase === 'undefined') return false;
+      firebase.initializeApp(FIREBASE_CONFIG);
+      this.auth = firebase.auth();
+      this.db = firebase.firestore();
+      this.ready = true;
+      return true;
+    }catch(e){ console.warn('서버 연결 실패, 기기 저장으로 동작합니다', e); return false; }
+  },
+
+  async signUp(email, nick, pw){
+    if(!this.ready) return AUTH.localSignUp(email, nick, pw);
+    try{
+      const nickRef = this.db.collection('nicks').doc(nick);
+      const taken = await nickRef.get();
+      if(taken.exists) return {error:'이미 쓰이는 닉네임입니다.'};
+      const cred = await this.auth.createUserWithEmailAndPassword(email, pw);
+      const uid = cred.user.uid;
+      await this.db.collection('users').doc(uid).set({nick, email, entitled:false, createdAt:Date.now()});
+      await nickRef.set({uid});
+      return {user:{id:uid, email, nick, entitled:false}};
+    }catch(e){ return {error: this.msg(e)}; }
+  },
+
+  async signIn(email, pw){
+    if(!this.ready) return AUTH.localSignIn(email, pw);
+    try{
+      const cred = await this.auth.signInWithEmailAndPassword(email, pw);
+      const uid = cred.user.uid;
+      const doc = await this.db.collection('users').doc(uid).get();
+      const d = doc.exists ? doc.data() : {nick:'선수', entitled:false};
+      return {user:{id:uid, email, nick:d.nick, entitled:!!d.entitled}};
+    }catch(e){ return {error: this.msg(e)}; }
+  },
+
+  async resetPw(email){
+    if(!this.ready) return {error:'서버에 연결되지 않았습니다.'};
+    try{ await this.auth.sendPasswordResetEmail(email); return {ok:true}; }
+    catch(e){ return {error: this.msg(e)}; }
+  },
+
+  async load(uid){
+    if(!this.ready) return null;
+    try{
+      const doc = await this.db.collection('saves').doc(uid).get();
+      return doc.exists ? doc.data() : null;
+    }catch(e){ return null; }
+  },
+
+  // 진도·골드를 모아서 2초 뒤 한 번만 올립니다
+  push(){
+    if(!this.ready || !ACCT) return;
+    clearTimeout(this.timer);
+    this.timer = setTimeout(async ()=>{
+      try{
+        await this.db.collection('saves').doc(ACCT.id)
+          .set({gold, progress, nick:ACCT.nick, at:Date.now()}, {merge:true});
+        await this.db.collection('users').doc(ACCT.id)
+          .set({entitled: !!ACCT.entitled}, {merge:true});
+      }catch(e){}
+    }, 2000);
+  },
+
+  msg(e){
+    const m = {
+      'auth/email-already-in-use':'이미 가입된 이메일입니다.',
+      'auth/invalid-email':'이메일 주소를 확인해 주세요.',
+      'auth/weak-password':'비밀번호는 6자 이상으로 정해 주세요.',
+      'auth/user-not-found':'가입되지 않은 이메일입니다.',
+      'auth/wrong-password':'비밀번호가 맞지 않습니다.',
+      'auth/invalid-credential':'이메일이나 비밀번호가 맞지 않습니다.',
+      'auth/too-many-requests':'잠시 후 다시 시도해 주세요.',
+      'auth/network-request-failed':'인터넷 연결을 확인해 주세요.'
+    };
+    return m[e && e.code] || '문제가 생겼습니다. 잠시 후 다시 시도해 주세요.';
+  }
 };
 let gold = store.get('gold', 0);
+// ===== 계정 =====
+const FREE_REGIONS = ['asia-e'];                 // 무료로 열려 있는 대륙
+const REDEEM_CODES = ['ENB-2026-TEST', 'ENB-2026-BETA', 'MAPDT-FULL'];   // 스토어 등록 전 테스트용
+
+const AUTH = {
+  users(){ try{ return JSON.parse(localStorage.getItem('geo:users')||'{}'); }catch(e){ return {}; } },
+  saveUsers(u){ localStorage.setItem('geo:users', JSON.stringify(u)); },
+  hash(s){ let h=0; for(let i=0;i<s.length;i++){ h=(h*31 + s.charCodeAt(i))|0; } return String(h); },
+
+  validNick(n){
+    if(!n || n.length<2 || n.length>8) return '닉네임은 2~8자로 지어 주세요.';
+    if(!/^[가-힣]+[0-9]{0,2}$/.test(n)) return '닉네임은 한글로 지어 주세요. (ㅋㅋ 같은 낱자는 쓸 수 없어요)';
+    return null;
+  },
+  validEmail(e){ return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e) ? null : '이메일 주소를 확인해 주세요.'; },
+  validPw(p){ return (p && p.length>=6) ? null : '비밀번호는 6자 이상으로 정해 주세요.'; },
+
+  localSignUp(email, nick, pw){
+    const u = this.users();
+    if(u[email]) return {error:'이미 가입된 이메일입니다.'};
+    if(Object.values(u).some(x=> x.nick===nick)) return {error:'이미 쓰이는 닉네임입니다.'};
+    u[email] = {id:this.hash(email), email, nick, pw:this.hash(pw), entitled:false};
+    this.saveUsers(u);
+    return {user:u[email]};
+  },
+  localSignIn(email, pw){
+    const u = this.users()[email];
+    if(!u) return {error:'가입되지 않은 이메일입니다.'};
+    if(u.pw !== this.hash(pw)) return {error:'비밀번호가 맞지 않습니다.'};
+    return {user:u};
+  },
+  persist(){
+    const u = this.users();
+    if(ACCT && u[ACCT.email]){ u[ACCT.email].entitled = ACCT.entitled; this.saveUsers(u); }
+    localStorage.setItem('geo:session', ACCT ? ACCT.email : '');
+  }
+};
+
+function regionUnlocked(r){ return DEV_UNLOCK_ALL || (ACCT && ACCT.entitled) || FREE_REGIONS.includes(r); }
+function worldUnlocked(){ return DEV_UNLOCK_ALL || (ACCT && ACCT.entitled); }
+
+function redeem(){
+  const code = prompt('리딤 코드를 입력하세요');
+  if(!code) return;
+  if(REDEEM_CODES.includes(code.trim().toUpperCase())){
+    ACCT.entitled = true; AUTH.persist();
+    alert('전체 해금되었습니다. 아홉 대륙을 모두 쓸 수 있습니다.');
+    renderLobby();
+  } else alert('코드가 맞지 않습니다.');
+}
+
 // ★ 개발 모드 — true 면 모든 단계·대륙·리그가 열립니다. 출시 전에 false 로 바꾸세요
 const DEV_UNLOCK_ALL = true;
 
@@ -648,7 +823,7 @@ function saveProgress(){ store.set('progress', progress); }
 let screenName = 'lobby';
 function showScreen(n){
   screenName = n;
-  ['lobby','pick','learn','mapScreen','duelHome','netRoom','duelTurn','trophyHome','globeScreen'].forEach(s=> document.getElementById(s).classList.toggle('on', s===n));
+  ['authScreen','lobby','pick','learn','mapScreen','duelHome','netRoom','duelTurn','trophyHome','globeScreen'].forEach(s=> document.getElementById(s).classList.toggle('on', s===n));
 }
 function goHome(){
   stopStage(); stopGlobe();
@@ -1332,6 +1507,11 @@ function counts(){ if(!progress.counts) progress.counts = {practice:0, stage:0};
 function renderLobby(){
   document.getElementById('lobbyGold').textContent = gold;
   document.getElementById('devTag').style.display = DEV_UNLOCK_ALL ? '' : 'none';
+  document.getElementById('acctTag').innerHTML = ACCT
+    ? `${ACCT.nick} ${ACCT.entitled ? '<span class="locktag">전체 해금</span>' : '<span class="locktag">무료</span>'}` : '';
+  document.getElementById('redeemBtn').onclick = redeem;
+  document.getElementById('logoutBtn').onclick = logout;
+  document.getElementById('redeemBtn').style.display = (ACCT && ACCT.entitled) ? 'none' : '';
   const doneAll = REGION_ORDER.reduce((a,r)=> a + regionScore(r), 0);
   const totalAll = REGION_ORDER.length * 9;
 
@@ -1420,6 +1600,10 @@ function renderRegionCol(){
   const head = document.createElement('div'); head.className='col-head';
   head.textContent = worldStage ? '범위' : '대륙';
   col.appendChild(head);
+  if(worldStage && !worldUnlocked()){
+    col.innerHTML += `<div class="col-empty">🔑 전 세계 단계는 전체 해금이 필요합니다</div>`;
+    return;
+  }
   if(worldStage){
     const b = document.createElement('button');
     b.className='lbtn on';
@@ -1442,9 +1626,11 @@ function renderRegionCol(){
     } else {
       open = stageOpenIn(rid, homeStep); why = stageCond(homeStep); done = stagePassedIn(rid, homeStep);
     }
+    const paid = regionUnlocked(rid);
+    if(!paid){ open = false; why = '전체 해금이 필요합니다'; }
     const b = document.createElement('button');
     b.className = 'lbtn' + (open ? '' : ' locked') + (homeRegion===rid ? ' on' : '');
-    b.innerHTML = `<div class="t"><span>${open?'':'🔒 '}${REGIONS[rid].name}</span><span class="p">${done?'✓':''}</span></div>
+    b.innerHTML = `<div class="t"><span>${open?'':(paid?'🔒 ':'🔑 ')}${REGIONS[rid].name}</span><span class="p">${done?'✓':''}</span></div>
                    <div class="s">${open ? regionIds(rid).length+'개 나라' : why}</div>`;
     if(open) b.onclick = ()=>{
       if(homeRegion === rid){ startFromHome(rid); return; }   // 한 번 더 누르면 바로 시작
@@ -2335,6 +2521,102 @@ function stopGlobe(){
   if(gOvTimer){ clearInterval(gOvTimer); gOvTimer=null; }
 }
 
+// ================= 로그인 화면 =================
+let authMode = 'in';
+function showAuth(){
+  showScreen('authScreen');
+  const box = document.getElementById('authBox');
+  const isUp = authMode === 'up';
+  box.innerHTML = `
+    <h2>${isUp ? '회원가입' : '로그인'}</h2>
+    <p class="lead">${isUp
+      ? '진도와 골드를 계정에 저장합니다.<br>초등학생은 부모님 이메일로 가입해 주세요.'
+      : '가입한 이메일과 비밀번호를 입력하세요.'}</p>
+    <label>이메일${isUp?' (부모님 이메일)':''}</label><input id="aEmail" type="email" autocomplete="email">
+    ${isUp ? `<label>닉네임 (한글 2~8자)</label><input id="aNick" maxlength="8">` : ''}
+    <label>비밀번호 (6자 이상)</label><input id="aPw" type="password">
+    ${isUp ? `<div class="agree"><input type="checkbox" id="aAgree">
+      <span>만 14세 미만은 법정대리인(부모님)의 동의가 필요합니다. 동의합니다.</span></div>` : ''}
+    <div class="err" id="aErr"></div>
+    <button class="btn-gold wide" id="aGo">${isUp ? '가입하기' : '로그인'}</button>
+    <div class="switch">${isUp
+      ? '이미 계정이 있나요? <a onclick="authMode=\'in\';showAuth()">로그인</a>'
+      : '처음이신가요? <a onclick="authMode=\'up\';showAuth()">회원가입</a><br>'
+        + '<a onclick="resetPw()" style="font-size:12px">비밀번호를 잊으셨나요?</a>'}</div>
+    <div class="switch" style="font-size:11.5px;color:var(--dim)">${SERVER.ready ? '서버에 저장됩니다' : '기기에만 저장됩니다'}</div>`;
+  document.getElementById('aGo').onclick = doAuth;
+}
+
+async function doAuth(){
+  const err = document.getElementById('aErr');
+  const email = (document.getElementById('aEmail').value||'').trim().toLowerCase();
+  const pw = document.getElementById('aPw').value||'';
+  const isUp = authMode === 'up';
+  let msg = AUTH.validEmail(email) || AUTH.validPw(pw);
+  let nick = '';
+  if(isUp){
+    nick = (document.getElementById('aNick').value||'').trim();
+    msg = msg || AUTH.validNick(nick);
+    if(!msg && !document.getElementById('aAgree').checked) msg = '보호자 동의에 체크해 주세요.';
+  }
+  if(msg){ err.textContent = msg; return; }
+  const go = document.getElementById('aGo');
+  go.disabled = true; go.textContent = '잠시만요…'; err.textContent = '';
+  const res = isUp ? await SERVER.signUp(email, nick, pw) : await SERVER.signIn(email, pw);
+  go.disabled = false; go.textContent = isUp ? '가입하기' : '로그인';
+  if(res.error){ err.textContent = res.error; return; }
+  await loginAs(res.user);
+}
+
+async function resetPw(){
+  const email = (document.getElementById('aEmail').value||'').trim().toLowerCase();
+  const err = document.getElementById('aErr');
+  if(AUTH.validEmail(email)){ err.textContent = '먼저 이메일을 입력해 주세요.'; return; }
+  const r = await SERVER.resetPw(email);
+  err.textContent = r.ok ? '비밀번호 재설정 메일을 보냈습니다. 메일함을 확인해 주세요.' : r.error;
+}
+
+async function loginAs(u){
+  ACCT = {id:u.id, email:u.email, nick:u.nick, entitled:!!u.entitled};
+  AUTH.persist();
+  gold = store.get('gold', 0);
+  progress = store.get('progress', null);
+  const remote = await SERVER.load(ACCT.id);         // 서버 기록이 있으면 그쪽을 씁니다
+  if(remote){
+    if(typeof remote.gold === 'number') gold = remote.gold;
+    if(remote.progress && remote.progress.v2) progress = remote.progress;
+    store.set('gold', gold);
+  }
+  if(!progress || !progress.v2) progress = {v2:true, steps:{}, practice:{}, stages:{}};
+  saveProgress();
+  NET.myName = ACCT.nick;
+  goHome();
+}
+
+function logout(){
+  try{ if(SERVER.ready) SERVER.auth.signOut(); }catch(e){}
+  ACCT = null;
+  localStorage.setItem('geo:session','');
+  authMode = 'in'; showAuth();
+}
+
+function restoreSession(){
+  if(SERVER.ready){
+    SERVER.auth.onAuthStateChanged(async user=>{
+      if(user){
+        const doc = await SERVER.db.collection('users').doc(user.uid).get();
+        const d = doc.exists ? doc.data() : {nick:'선수', entitled:false};
+        await loginAs({id:user.uid, email:user.email, nick:d.nick, entitled:!!d.entitled});
+      } else if(!ACCT){ showAuth(); }
+    });
+    return true;
+  }
+  const email = localStorage.getItem('geo:session');
+  const u = email && AUTH.users()[email];
+  if(u){ loginAs(u); return true; }
+  return false;
+}
+
 // ---------- 화면 크기 변화 ----------
 let rz=null;
 window.addEventListener('resize', ()=>{
@@ -2347,8 +2629,9 @@ window.addEventListener('resize', ()=>{
 });
 
 initGlobe();
+SERVER.init();
 initGlobe();
-renderLobby();
+if(!restoreSession()) showAuth();
 window.addEventListener('resize', ()=>{ if(document.getElementById('lobby').classList.contains('on')) initGlobe(); });
 </script>
 </body>
