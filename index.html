@@ -1726,6 +1726,7 @@ const NET = {
 
   onGuest(conn, d){
     const R = this.room; if(!R) return;
+    if(d.t==='solved'){ this.teamSolved(conn.peer, d.team, d.idx, d.gate); return; }
     if(d.t==='join'){
       if(R.players.length >= DUEL_MODES.find(m=>m.id===duelMode).n) return;
       const team = R.players.filter(p=>p.team==='HOME').length <= R.players.filter(p=>p.team==='AWAY').length ? 'HOME':'AWAY';
@@ -1735,6 +1736,40 @@ const NET = {
     if(d.t==='team'){ const p=R.players.find(x=>x.id===conn.peer); if(p){ p.team=d.team; this.pushState(); } }
     if(d.t==='prog'){ const p=R.players.find(x=>x.id===conn.peer); if(p){ p.solved=d.solved; p.time=d.time; } netLive(); this.pushScores(); }
     if(d.t==='fin'){ const p=R.players.find(x=>x.id===conn.peer); if(p){ p.score=d.score; p.fin=true; } this.checkAllDone(); }
+  },
+
+  // 팀이 한 문제(또는 관문)를 통과했을 때
+  teamSolved(playerId, team, idx, gate){
+    const R = this.room;
+    if(!R.cursors) return;
+    const c = R.cursors[team];
+    if(!c || c.idx !== idx || c.gate !== gate) return;      // 이미 다른 팀원이 넘긴 문제
+    const triple = STAGES[R.stage-1].globe === 'triple';
+    if(triple && c.gate < 3){ c.gate++; }
+    else { c.idx++; c.gate = 1; R.credits[playerId] = (R.credits[playerId]||0) + 1; }
+    const finished = c.idx >= (STAGES[R.stage-1].qCount || 20);
+    this.conns.forEach(x=>{ try{ x.send({t:'cursor', cursors:R.cursors, credits:R.credits, by:playerId}); }catch(e){} });
+    onCursor(R.cursors, R.credits);
+    if(finished){
+      R.players.forEach(p=>{ p.score = (R.credits[p.id]||0) * 100; p.fin = true; });   // 개인 점수는 자기가 맞힌 수, 팀 점수는 그 합
+      this.conns.forEach(x=>{ try{ x.send({t:'result', players:R.players}); }catch(e){} });
+      duel = { players:R.players.map(p=>({name:p.name, team:p.team, score:p.score})),
+               stage:R.stage, teams:R.teams, fee:FEE_BY_STAGE[R.stage] };
+      duelTeams = R.teams;
+      gRun=false; if(gTick){ clearInterval(gTick); gTick=null; }
+      showDuelResult();
+    }
+  },
+
+  finishTeamsByTime(){
+    const R=this.room; if(!R || !R.cursors) return;
+    R.players.forEach(p=>{ p.score = (R.credits[p.id]||0) * 100; p.fin=true; });
+    this.conns.forEach(x=>{ try{ x.send({t:'result', players:R.players}); }catch(e){} });
+    duel = { players:R.players.map(p=>({name:p.name, team:p.team, score:p.score})),
+             stage:R.stage, teams:R.teams, fee:FEE_BY_STAGE[R.stage] };
+    duelTeams = R.teams;
+    gRun=false; if(gTick){ clearInterval(gTick); gTick=null; }
+    showDuelResult();
   },
 
   pushScores(){
@@ -1756,7 +1791,9 @@ const NET = {
 
   onHost(d){
     if(d.t==='state'){ this.room=d.room; netRender(); }
-    if(d.t==='start'){ this.room.seed=d.seed; this.room.stage=d.stage; this.room.started=true; startNetGame(); }
+    if(d.t==='start'){ this.room.seed=d.seed; this.room.stage=d.stage; this.room.started=true;
+      this.room.cursors=d.cursors; this.room.credits={}; startNetGame(); }
+    if(d.t==='cursor'){ if(this.room){ this.room.cursors=d.cursors; this.room.credits=d.credits; } onCursor(d.cursors, d.credits); }
     if(d.t==='score'){ netLive(d.list); }
     if(d.t==='result'){
       duel = { players:d.players.map(p=>({name:p.name, team:p.team, score:p.score})),
@@ -1843,8 +1880,33 @@ function hostStart(){
   R.seed = Math.floor(Math.random()*900000)+100000;
   R.started = true; R.stage = duelStage;
   R.players.forEach(p=>{ p.score=null; p.solved=0; p.fin=false; });
-  NET.conns.forEach(c=>{ try{ c.send({t:'start', seed:R.seed, stage:R.stage}); }catch(e){} });
+  R.cursors = {HOME:{idx:0,gate:1}, AWAY:{idx:0,gate:1}};
+  R.credits = {};
+  NET.conns.forEach(c=>{ try{ c.send({t:'start', seed:R.seed, stage:R.stage, cursors:R.cursors}); }catch(e){} });
   startNetGame();
+}
+
+// 팀 진행 상황이 바뀌면 모든 화면을 새 문제로
+function onCursor(cursors, credits){
+  if(!gTeamMode) return;
+  const c = cursors[gMyTeam];
+  gCursor = {idx:c.idx, gate:c.gate};
+  netLiveTeam(cursors, credits);
+  if(!gRun) return;
+  gWaiting = false; gGraded = false; gSel = null; gPick = null;
+  gGate = gCursor.gate;
+  if(gCursor.idx < runCount()) nextGlobeQ();
+}
+
+function netLiveTeam(cursors, credits){
+  const box = document.getElementById('liveBox');
+  if(!box || !NET.room) return;
+  box.innerHTML = `<div class="l">팀 점수</div>` + ['HOME','AWAY'].map(t=>{
+    const names = NET.room.players.filter(p=>p.team===t)
+      .map(p=>`${p.name} ${credits && credits[p.id] ? credits[p.id] : 0}`).join(' · ');
+    return `<div class="r ${t===gMyTeam?'me':''}"><span>${t} <span style="font-size:11px;color:var(--dim)">${names}</span></span>
+            <b>${cursors[t].idx}</b></div>`;
+  }).join('');
 }
 
 function startNetGame(){
@@ -1853,6 +1915,10 @@ function startNetGame(){
            fee: FEE_BY_STAGE[NET.room.stage], seed: NET.room.seed, idx:0 };
   duelTeams = NET.room.teams;
   gNet = true;
+  gTeamMode = !!NET.room.teams;
+  const me = NET.room.players.find(p=> p.id === (NET.isHost ? 'HOST' : NET.myId));
+  gMyTeam = me ? me.team : 'HOME';
+  gCursor = {idx:0, gate:1};
   enterGlobeStage(NET.room.stage, true);
   netLive();
 }
@@ -1868,6 +1934,12 @@ function netLive(list){
   box.innerHTML = `<div class="l">실시간 점수</div>` + rows
     .slice().sort((a,b)=> b.solved-a.solved)
     .map(p=>`<div class="r ${p.id===myId?'me':''}"><span>${p.name}${p.fin?' ✓':''}</span><b>${p.solved}</b></div>`).join('');
+}
+
+// 내가 먼저 맞혔다고 방장에게 알립니다 (먼저 도착한 사람만 인정됩니다)
+function teamReport(){
+  if(NET.isHost) NET.teamSolved('HOST', gMyTeam, gCursor.idx, gCursor.gate);
+  else NET.toHost({t:'solved', team:gMyTeam, idx:gCursor.idx, gate:gCursor.gate});
 }
 
 function netProgress(){
@@ -2199,7 +2271,9 @@ let gW=900, gH=630, gR=250, gRot=[100,-20], gK=1;
 let gLand=null, gDots=null, gSea=null, gGrat=null;
 let gQueue=[], gDone=new Set(), gSel=null, gAsked=0, gSolved=0, gGraded=false;
 let gTime=0, gTick=null, gRun=false, gLevel=4, gQStart=0, gOvTimer=null;
-let gGate=1, gPick=null, gPickEl=null, gDuel=false, gNet=false;     // 삼중 관문: 1 국기 → 2 수도 → 3 지도
+let gGate=1, gPick=null, gPickEl=null, gDuel=false, gNet=false;
+// 진짜 팀전: 두 사람이 같은 문제를 함께 풀고, 먼저 맞힌 사람이 팀을 다음 문제로 넘깁니다
+let gTeamMode=false, gMyTeam='HOME', gCursor={idx:0, gate:1}, gWaiting=false;     // 삼중 관문: 1 국기 → 2 수도 → 3 지도
 
 function buildGlobe(){
   const wrap = document.getElementById('gWrap');
@@ -2330,7 +2404,10 @@ function startGlobeRun(){
   if(gTick) clearInterval(gTick);
   gTick = setInterval(()=>{
     gTime--;
-    if(gTime<=0){ gTime=0; endGlobeRun(false); }
+    if(gTime<=0){ gTime=0;
+      if(gTeamMode){ if(NET.isHost) NET.finishTeamsByTime(); }
+      else endGlobeRun(false);
+    }
     const t=document.getElementById('gTimer'); t.textContent=gTime; t.classList.toggle('low', gTime<=10);
   }, 1000);
   document.getElementById('gTimer').textContent = gTime;
@@ -2345,6 +2422,15 @@ function worldOptions(id){
 
 function nextGlobeQ(){
   if(!gRun) return;
+  if(gTeamMode){
+    if(gCursor.idx >= runCount()) return;      // 결과는 방장이 알려 줍니다
+    gSel=null; gGraded=false; gPick=null; gPickEl=null; gWaiting=false;
+    gQStart = performance.now(); gGate = gCursor.gate;
+    gLand.selectAll('path').classed('sel', false);
+    gDots.selectAll('circle').classed('sel', false);
+    renderGlobeDock();
+    return;
+  }
   if(!gQueue.length){ endGlobeRun(true); return; }
   gSel = null; gGraded = false; gPick = null; gPickEl = null; gQStart = performance.now();
   gLand.selectAll('path').classed('sel', false);
@@ -2357,6 +2443,8 @@ function gateBar(){
     `<i class="${gGate>i?'ok':gGate===i?'now':''}">${'①②③'[i-1]}</i>`).join('')}</span>`;
 }
 
+function curId(){ return gTeamMode ? gQueue[gCursor.idx] : gQueue[0]; }
+
 function renderGateOptions(id){
   const isFlag = gGate === 1;
   const options = worldOptions(id);
@@ -2364,7 +2452,7 @@ function renderGateOptions(id){
     <div class="q-head"><div class="q-pick">${gateBar()}
       <span class="big">${META[id].name}</span>
       <span class="q-ask">${isFlag ? '의 국기는?' : '의 수도는?'}</span></div>
-      <span class="q-left">${gQueue.length}나라 남음</span></div>
+      <span class="q-left">${gTeamMode ? (runCount()-gCursor.idx)+'나라 남음' : gQueue.length+'나라 남음'}</span></div>
     <div class="opts" id="gOpts"></div>
     <div class="q-foot"><button class="submit" id="gSubmit" disabled>제출하기</button>
       <span class="msg" id="gMsg"></span></div>`;
@@ -2389,9 +2477,9 @@ function renderGateOptions(id){
 }
 
 function gradeGate(){
-  if(gGraded || !gPick) return;
+  if(gGraded || !gPick || gWaiting) return;
   gGraded = true;
-  const id = gQueue[0], correct = gPick === id;
+  const id = curId(), correct = gPick === id;
   const msg = document.getElementById('gMsg');
   document.getElementById('gSubmit').disabled = true;
   document.querySelectorAll('#gOpts .opt').forEach(b=> b.disabled = true);
@@ -2401,6 +2489,16 @@ function gradeGate(){
   mk.className = 'mark ' + (correct ? 'ok' : 'bad');
   mk.textContent = correct ? 'O' : 'X';
   gPickEl.appendChild(mk);
+  if(gTeamMode){
+    if(correct){ msg.textContent='통과! 팀이 다음으로'; msg.className='msg ok'; gWaiting=true; teamReport(); }
+    else {
+      gTime = Math.max(0, gTime - WRONG_PENALTY);
+      document.getElementById('gTimer').textContent = gTime;
+      msg.textContent = `아쉬워요. −${WRONG_PENALTY}초`; msg.className='msg bad';
+      setTimeout(()=>{ if(gRun && !gWaiting){ gGraded=false; gPick=null; renderGlobeDock(); } }, HOLD_NO);
+    }
+    return;
+  }
   if(correct){
     msg.textContent = '통과'; msg.className = 'msg ok';
     setTimeout(()=>{ if(!gRun) return; gGate++; gGraded=false; gPick=null; renderGlobeDock(); }, HOLD_OK);
@@ -2420,7 +2518,7 @@ function syncGDock(){
 }
 
 function renderGlobeDock(){
-  const id = gQueue[0], mode = STAGES[gLevel-1].globe;
+  const id = gTeamMode ? gQueue[gCursor.idx] : gQueue[0], mode = STAGES[gLevel-1].globe;
   if(mode === 'triple' && gGate < 3){ renderGateOptions(id); return; }
   let q = '';
   if(mode==='name')    q = `<span class="q-ask">이 나라를 찾으세요</span> <span class="big">${META[id].name}</span>`;
@@ -2429,7 +2527,7 @@ function renderGlobeDock(){
   if(mode==='flag')    q = `<span class="q-ask">이 국기의 나라를 찾으세요</span> <span class="fl">${FLAGS[META[id].flag]||''}</span>`;
   document.getElementById('gDockInner').innerHTML = `
     <div class="q-head"><div class="q-pick">${q}</div>
-      <span class="q-left">${gQueue.length}문제 남음<br><span style="font-size:11.5px">두 손가락으로 확대</span></span></div>
+      <span class="q-left">${gTeamMode ? (runCount()-gCursor.idx) : gQueue.length}문제 남음<br><span style="font-size:11.5px">두 손가락으로 확대</span></span></div>
     <div class="q-foot">
       <button class="submit" id="gSubmit" ${gSel?'':'disabled'}>${gSel?'이 나라로 확인':'지구본에서 나라를 누르세요'}</button>
       <span class="msg" id="gMsg"></span>
@@ -2440,12 +2538,29 @@ function renderGlobeDock(){
 }
 
 function gradeGlobe(){
-  if(!gRun || gGraded || !gSel) return;
+  if(!gRun || gGraded || !gSel || gWaiting) return;
   gGraded = true;
-  const id = gQueue[0], correct = gSel === id;
+  const id = curId(), correct = gSel === id;
   const msg = document.getElementById('gMsg');
   document.getElementById('gSubmit').disabled = true;
   gAsked++;
+  if(gTeamMode){
+    if(correct){
+      msg.textContent = '정답! 팀이 다음 문제로'; msg.className='msg ok';
+      gDone.add(id);
+      gLand.selectAll('path').classed('done', d=> gDone.has(d.id));
+      gWaiting = true;
+      teamReport();
+    } else {
+      gTime = Math.max(0, gTime - WRONG_PENALTY);
+      document.getElementById('gTimer').textContent = gTime;
+      gLand.selectAll('path').classed('sel', false);
+      gDots.selectAll('circle').classed('sel', false);
+      msg.textContent = `아쉬워요. −${WRONG_PENALTY}초 · 다시 찾아보세요`; msg.className='msg bad';
+      setTimeout(()=>{ if(gRun && !gWaiting){ gGraded=false; gSel=null; renderGlobeDock(); } }, HOLD_NO);
+    }
+    return;
+  }
   if(correct){
     const sec = (performance.now()-gQStart)/1000;
     let g = Math.round(Math.min(GOLD_BASE, Math.max(GOLD_MIN, GOLD_BASE - GOLD_DECAY*sec)));
