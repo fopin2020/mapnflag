@@ -1491,10 +1491,13 @@ function markLearn(step, r){
 let homeMenu = null, homeStep = null, homeRegion = null;
 
 const DUEL_MODES = [
-  {id:'1v1',   name:'1 : 1',        n:2, desc:'둘이서 맞대결'},
-  {id:'1v1v1', name:'1 : 1 : 1',    n:3, desc:'세 명이 동시에'},
-  {id:'1v1v1v1',name:'1 : 1 : 1 : 1', n:4, desc:'네 명이 동시에'},
-  {id:'2v2',   name:'2 : 2',        n:4, desc:'두 명씩 팀을 이뤄'},
+  {id:'1v1',    name:'1 : 1',         n:2,  desc:'둘이서 맞대결'},
+  {id:'1v1v1',  name:'1 : 1 : 1',     n:3,  desc:'세 명이 동시에'},
+  {id:'1v1v1v1',name:'1 : 1 : 1 : 1', n:4,  desc:'네 명이 동시에'},
+  {id:'2v2',    name:'2 : 2',         n:4,  team:true, desc:'두 명씩 팀을 이뤄'},
+  {id:'3v3',    name:'3 : 3',         n:6,  team:true, desc:'세 명씩 팀을 이뤄'},
+  {id:'4v4',    name:'4 : 4',         n:8,  team:true, desc:'네 명씩 팀을 이뤄'},
+  {id:'5v5',    name:'5 : 5',         n:10, team:true, desc:'다섯 명씩 팀을 이뤄'},
 ];
 const DUEL_FEE = {'대륙 리그':20, '챔피언스 리그':50};
 const CHAMPION_WINS = 5;      // 대륙 리그마다 필요한 승수
@@ -1742,14 +1745,25 @@ const NET = {
   teamSolved(playerId, team, idx, gate){
     const R = this.room;
     if(!R.cursors) return;
+    if(!R.locked) R.locked = {HOME:null, AWAY:null};
+    if(!R.streak) R.streak = {HOME:{id:null,n:0}, AWAY:{id:null,n:0}};
+    if(R.locked[team] === playerId) return;                 // 이번 문제는 쉬어 가는 사람
     const c = R.cursors[team];
     if(!c || c.idx !== idx || c.gate !== gate) return;      // 이미 다른 팀원이 넘긴 문제
     const triple = STAGES[R.stage-1].globe === 'triple';
     if(triple && c.gate < 3){ c.gate++; }
-    else { c.idx++; c.gate = 1; R.credits[playerId] = (R.credits[playerId]||0) + 1; }
+    else {
+      c.idx++; c.gate = 1;
+      R.credits[playerId] = (R.credits[playerId]||0) + 1;
+      // 세 문제 연속으로 맞히면 다음 한 문제는 동료에게 넘깁니다
+      const st = R.streak[team];
+      if(st.id === playerId) st.n++; else { st.id = playerId; st.n = 1; }
+      if(st.n >= 3 && R.players.filter(p=>p.team===team).length > 1){ R.locked[team] = playerId; st.n = 0; }
+      else R.locked[team] = null;
+    }
     const finished = c.idx >= (STAGES[R.stage-1].qCount || 20);
-    this.conns.forEach(x=>{ try{ x.send({t:'cursor', cursors:R.cursors, credits:R.credits, by:playerId}); }catch(e){} });
-    onCursor(R.cursors, R.credits);
+    this.conns.forEach(x=>{ try{ x.send({t:'cursor', cursors:R.cursors, credits:R.credits, locked:R.locked, by:playerId}); }catch(e){} });
+    onCursor(R.cursors, R.credits, R.locked);
     if(finished){
       R.players.forEach(p=>{ p.score = (R.credits[p.id]||0) * 100; p.fin = true; });   // 개인 점수는 자기가 맞힌 수, 팀 점수는 그 합
       this.conns.forEach(x=>{ try{ x.send({t:'result', players:R.players}); }catch(e){} });
@@ -1793,7 +1807,7 @@ const NET = {
     if(d.t==='state'){ this.room=d.room; netRender(); }
     if(d.t==='start'){ this.room.seed=d.seed; this.room.stage=d.stage; this.room.started=true;
       this.room.cursors=d.cursors; this.room.credits={}; startNetGame(); }
-    if(d.t==='cursor'){ if(this.room){ this.room.cursors=d.cursors; this.room.credits=d.credits; } onCursor(d.cursors, d.credits); }
+    if(d.t==='cursor'){ if(this.room){ this.room.cursors=d.cursors; this.room.credits=d.credits; this.room.locked=d.locked; } onCursor(d.cursors, d.credits, d.locked); }
     if(d.t==='score'){ netLive(d.list); }
     if(d.t==='result'){
       duel = { players:d.players.map(p=>({name:p.name, team:p.team, score:p.score})),
@@ -1881,14 +1895,18 @@ function hostStart(){
   R.started = true; R.stage = duelStage;
   R.players.forEach(p=>{ p.score=null; p.solved=0; p.fin=false; });
   R.cursors = {HOME:{idx:0,gate:1}, AWAY:{idx:0,gate:1}};
-  R.credits = {};
+  R.credits = {}; R.locked = {HOME:null, AWAY:null}; R.streak = {HOME:{id:null,n:0}, AWAY:{id:null,n:0}};
   NET.conns.forEach(c=>{ try{ c.send({t:'start', seed:R.seed, stage:R.stage, cursors:R.cursors}); }catch(e){} });
   startNetGame();
 }
 
 // 팀 진행 상황이 바뀌면 모든 화면을 새 문제로
-function onCursor(cursors, credits){
+function myPlayerId(){ return NET.isHost ? 'HOST' : NET.myId; }
+let gLocked = false;
+
+function onCursor(cursors, credits, locked){
   if(!gTeamMode) return;
+  gLocked = !!(locked && locked[gMyTeam] === myPlayerId());
   const c = cursors[gMyTeam];
   gCursor = {idx:c.idx, gate:c.gate};
   netLiveTeam(cursors, credits);
@@ -1902,9 +1920,13 @@ function netLiveTeam(cursors, credits){
   const box = document.getElementById('liveBox');
   if(!box || !NET.room) return;
   box.innerHTML = `<div class="l">팀 점수</div>` + ['HOME','AWAY'].map(t=>{
-    const names = NET.room.players.filter(p=>p.team===t)
-      .map(p=>`${p.name} ${credits && credits[p.id] ? credits[p.id] : 0}`).join(' · ');
-    return `<div class="r ${t===gMyTeam?'me':''}"><span>${t} <span style="font-size:11px;color:var(--dim)">${names}</span></span>
+    const mem = NET.room.players.filter(p=>p.team===t)
+      .map(p=>({nm:p.name, c:(credits && credits[p.id]) || 0}))
+      .sort((a,b)=> b.c-a.c);
+    const top = mem.slice(0,3).map(m=>`${m.nm} ${m.c}`).join(' · ');
+    const more = mem.length>3 ? ` 외 ${mem.length-3}명` : '';
+    return `<div class="r ${t===gMyTeam?'me':''}"><span>${t}
+            <span style="font-size:11px;color:var(--dim)">${top}${more}</span></span>
             <b>${cursors[t].idx}</b></div>`;
   }).join('');
 }
@@ -1916,6 +1938,7 @@ function startNetGame(){
   duelTeams = NET.room.teams;
   gNet = true;
   gTeamMode = !!NET.room.teams;
+  gLocked = false;
   const me = NET.room.players.find(p=> p.id === (NET.isHost ? 'HOST' : NET.myId));
   gMyTeam = me ? me.team : 'HOME';
   gCursor = {idx:0, gate:1};
@@ -1973,7 +1996,7 @@ function openDuelHome(){
     const b=document.createElement('button');
     b.className='lbtn'+(duelMode===m.id?' on':'');
     b.innerHTML=`<div class="t"><span>${m.name}</span><span class="p">${m.n}명</span></div><div class="s">${m.desc}</div>`;
-    b.onclick=()=>{ duelMode=m.id; duelTeams = (m.id==='2v2'); openDuelHome(); };
+    b.onclick=()=>{ duelMode=m.id; duelTeams = !!m.team; openDuelHome(); };
     mc.appendChild(b);
   });
 
@@ -2370,6 +2393,7 @@ gsvg.on('wheel', ev=>{ ev.preventDefault(); gZoom(ev.deltaY < 0 ? 1.12 : 1/1.12)
 
 function pickCountry(code){
   if(gMoved) return;                       // 지구본을 돌린 동작은 선택으로 치지 않습니다
+  if(gLocked) return;                      // 연속 정답 뒤 한 문제는 쉬어 갑니다
   if(!gRun || gGraded || gDone.has(code)) return;
   gSel = code;
   gLand.selectAll('path').classed('sel', d=> d.id===code);
@@ -2388,7 +2412,14 @@ function enterGlobeStage(n, asDuel){
   startGlobeRun();
 }
 
-function runCount(){ return STAGES[gLevel-1].qCount || Q_PER_RUN; }
+function runCount(){
+  const base = STAGES[gLevel-1].qCount || Q_PER_RUN;
+  if(gTeamMode && NET.room){                       // 팀이 클수록 문제도 많이
+    const per = NET.room.players.length / 2;
+    return Math.round(base * (1 + (per-1) * 0.35));
+  }
+  return base;
+}
 function startGlobeRun(){
   const st = STAGES[gLevel-1];
   document.getElementById('liveBox').classList.toggle('is-hidden', !gNet);
@@ -2472,12 +2503,19 @@ function renderGateOptions(id){
     };
     box.appendChild(b);
   });
-  document.getElementById('gSubmit').onclick = gradeGate;
+  const sb = document.getElementById('gSubmit');
+  sb.onclick = gradeGate;
+  if(gLocked){
+    sb.disabled = true; sb.textContent = '이번 문제는 동료 차례';
+    document.querySelectorAll('#gOpts .opt').forEach(x=> x.disabled = true);
+    const m = document.getElementById('gMsg');
+    if(m){ m.textContent = '세 문제 연속으로 맞혔어요. 이번 한 문제는 팀원에게 양보합니다'; m.className='msg ok'; }
+  }
   syncGDock();
 }
 
 function gradeGate(){
-  if(gGraded || !gPick || gWaiting) return;
+  if(gGraded || !gPick || gWaiting || gLocked) return;
   gGraded = true;
   const id = curId(), correct = gPick === id;
   const msg = document.getElementById('gMsg');
@@ -2534,11 +2572,17 @@ function renderGlobeDock(){
     </div>`;
   const b = document.getElementById('gSubmit');
   if(gSel) b.onclick = gradeGlobe;
+  if(gLocked){
+    b.disabled = true;
+    b.textContent = '이번 문제는 동료 차례';
+    const m = document.getElementById('gMsg');
+    if(m){ m.textContent = '세 문제 연속으로 맞혔어요. 이번 한 문제는 팀원에게 양보합니다'; m.className='msg ok'; }
+  }
   syncGDock();
 }
 
 function gradeGlobe(){
-  if(!gRun || gGraded || !gSel || gWaiting) return;
+  if(!gRun || gGraded || !gSel || gWaiting || gLocked) return;
   gGraded = true;
   const id = curId(), correct = gSel === id;
   const msg = document.getElementById('gMsg');
